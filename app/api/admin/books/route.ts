@@ -1,0 +1,186 @@
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB } from "@/lib/mongoose";
+import { BookModel } from "@/models";
+import { isAdminPasswordValid } from "@/lib/admin";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
+
+const MAX_HTML_CONTENT_BYTES = 1024 * 1024;
+
+function sanitizeReaderHtml(html: string) {
+  if (!html) return html;
+  let s = String(html);
+  // Remove toolbar and thumbnail strip containers
+  s = s.replace(/<div[^>]*id=["']?toolbar["']?[^>]*>[\s\S]*?<\/div>/gi, "");
+  s = s.replace(/<div[^>]*id=["']?thumb-strip["']?[^>]*>[\s\S]*?<\/div>/gi, "");
+  // Remove any script blocks
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
+  // Strip inline event handlers that might recreate toolbars
+  s = s.replace(/ on[a-zA-Z]+=(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)/gi, "");
+  return s;
+}
+
+async function persistHtmlContent(htmlContent: string, slug: string) {
+  if (!htmlContent || htmlContent.startsWith("/uploads/")) {
+    return htmlContent;
+  }
+
+  // sanitize large reader-like HTML before persisting
+  const maybeSanitized = sanitizeReaderHtml(htmlContent);
+  const sizeInBytes = Buffer.byteLength(maybeSanitized, "utf8");
+  if (sizeInBytes <= MAX_HTML_CONTENT_BYTES) {
+    return maybeSanitized;
+  }
+
+  const htmlDir = path.join(process.cwd(), "public", "uploads", "html");
+  await mkdir(htmlDir, { recursive: true });
+
+  const safeFileName = `${slug || randomUUID()}-${Date.now()}.html`;
+  const filePath = path.join(htmlDir, safeFileName);
+  await writeFile(filePath, maybeSanitized, "utf8");
+  return `/uploads/html/${safeFileName}`;
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = req.headers.get("x-admin-password");
+    if (!isAdminPasswordValid(auth)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDB();
+    const books = await BookModel.find({}).sort({ createdAt: -1 }).lean();
+    return NextResponse.json({ books });
+  } catch (error) {
+    console.error("Admin list books error:", error);
+    return NextResponse.json({ error: "Unable to list books" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = req.headers.get("x-admin-password");
+    if (!isAdminPasswordValid(auth)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDB();
+    const contentType = req.headers.get("content-type") || "";
+    let body: Record<string, any> = {};
+    let formData: FormData | null = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      formData = await req.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      const rawBody = await req.text();
+      if (rawBody) {
+        try {
+          body = JSON.parse(rawBody);
+        } catch (error) {
+          console.error("Invalid admin book JSON payload:", error);
+          return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
+        }
+      }
+    }
+
+    const {
+      title,
+      author,
+      slug,
+      actualPrice,
+      sellingPrice,
+      description,
+      htmlContent,
+      color,
+      accent,
+      genre,
+      pages,
+      cover,
+      reader,
+      pdf,
+      highlights,
+      coverFileName,
+      pdfFileName,
+      readerFileName,
+    } = body;
+
+    if (!title || !author || !description || !htmlContent) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const safeSlug = (slug || title)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const existing = await BookModel.findOne({ slug: safeSlug });
+    if (existing) {
+      return NextResponse.json({ error: "A book with this slug already exists" }, { status: 400 });
+    }
+
+    const latestBook = await BookModel.findOne({}).sort({ id: -1 }).lean();
+    const nextId = (latestBook?.id ?? 0) + 1;
+    const price = Number(sellingPrice ?? actualPrice ?? 0);
+    const actual = Number(actualPrice ?? price ?? 0);
+    const persistedHtmlContent = await persistHtmlContent(String(htmlContent || ""), safeSlug);
+
+    const uploadFile = async (file: File | null, folder: string, fallbackPath: string) => {
+      if (!file) {
+        return fallbackPath;
+      }
+
+      const ext = path.extname(file.name || "") || ".bin";
+      const fileName = `${safeSlug || randomUUID()}-${Date.now()}${ext}`;
+      const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
+      await mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, fileName);
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      // If uploading reader HTML, sanitize as text before saving
+      if (folder === "readers" || path.extname(file.name || "").toLowerCase() === ".html") {
+        const text = fileBuffer.toString("utf8");
+        const sanitized = sanitizeReaderHtml(text);
+        await writeFile(filePath, sanitized, "utf8");
+      } else {
+        await writeFile(filePath, fileBuffer);
+      }
+      return `/uploads/${folder}/${fileName}`;
+    };
+
+    const coverFile = formData?.get("coverFile") as File | null;
+    const pdfFile = formData?.get("pdfFile") as File | null;
+    const readerFile = formData?.get("readerFile") as File | null;
+
+    const coverPath = await uploadFile(coverFile, "covers", cover || coverFileName || "/images/default-book.png");
+    const pdfPath = await uploadFile(pdfFile, "books", pdf || pdfFileName || "/books/default-book.pdf");
+    const readerPath = await uploadFile(readerFile, "readers", reader || readerFileName || "/readers/default-reader.html");
+
+    const book = await BookModel.create({
+      id: nextId,
+      title,
+      author,
+      slug: safeSlug,
+      actualPrice: actual,
+      sellingPrice: price,
+      price,
+      description,
+      htmlContent: persistedHtmlContent,
+      color: color || "#2c3e50",
+      accent: accent || "#1a252f",
+      genre: genre || "General",
+      pages: Number(pages || 0),
+      cover: coverPath,
+      reader: readerPath,
+      pdf: pdfPath,
+      highlights: Array.isArray(highlights) ? highlights : [],
+      isActive: true,
+    });
+
+    return NextResponse.json({ book, message: "Book added successfully" });
+  } catch (error) {
+    console.error("Admin create book error:", error);
+    return NextResponse.json({ error: "Unable to save book" }, { status: 500 });
+  }
+}

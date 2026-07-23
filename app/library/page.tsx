@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { BOOKS } from "@/lib/books";
+import { useEffect, useState } from "react";
+import type { Book } from "@/lib/books";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModal } from "@/contexts/ModalContext";
 
 export default function LibraryPage() {
   const { isLoggedIn, purchasedBooks } = useAuth();
   const { show } = useModal();
+  const [catalog, setCatalog] = useState<Book[]>([]);
+
+  useEffect(() => {
+    fetch("/api/books")
+      .then((res) => res.json())
+      .then((data) => setCatalog(data.books || []))
+      .catch(() => setCatalog([]));
+  }, []);
 
   if (!isLoggedIn) {
     return (
@@ -26,7 +35,7 @@ export default function LibraryPage() {
     );
   }
 
-  const myBooks = BOOKS.filter((b) => purchasedBooks.includes(b.id));
+  const myBooks = catalog.filter((b) => purchasedBooks.includes(b.id));
 
   return (
     <main className="container" style={{ padding: "6rem 1rem 4rem" }}>

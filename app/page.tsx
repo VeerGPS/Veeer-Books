@@ -1,12 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import BookGrid from "@/components/BookGrid";
-import { BOOKS } from "@/lib/books";
+import { getAllBooks } from "@/lib/books";
 
-// Server component — renders book grid statically at build time. The few
-// interactive bits (CTA buttons that scroll, etc.) are simple anchors.
-
-export default function HomePage() {
+// Server component — renders the current catalog from MongoDB when available.
+export default async function HomePage() {
+  const books = await getAllBooks();
   return (
     <>
       {/* ─── Hero ───────────────────────────────────────────────── */}
@@ -38,10 +37,10 @@ export default function HomePage() {
         <div className="section-header">
           <h2 className="section-title">The Collection</h2>
           <div style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-            Showing all {BOOKS.length} titles
+            Showing all {books.length} titles
           </div>
         </div>
-        <BookGrid books={BOOKS} />
+        <BookGrid books={books} />
       </section>
 
       {/* ─── New releases ───────────────────────────────────────── */}
@@ -49,7 +48,7 @@ export default function HomePage() {
         <div className="section-header">
           <h2 className="section-title">New Releases</h2>
         </div>
-        <BookGrid books={BOOKS.slice(0, 3)} />
+        <BookGrid books={books.slice(0, 3)} />
       </section>
 
       {/* ─── Curated collections ────────────────────────────────── */}
@@ -71,7 +70,7 @@ export default function HomePage() {
             <p>Personal Development / Growth</p>
           </div>
         </div>
-        <BookGrid books={BOOKS} />
+        <BookGrid books={books} />
       </section>
 
       {/* ─── About ──────────────────────────────────────────────── */}

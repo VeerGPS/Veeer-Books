@@ -11,9 +11,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BOOKS } from "@/lib/books";
+import type { Book } from "@/lib/books";
+import { calculateDiscount } from "@/lib/coupons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useModal } from "@/contexts/ModalContext";
@@ -38,9 +39,39 @@ export default function CartPage() {
   const { token, addPurchasedBooks } = useAuth();
   const { show } = useModal();
   const [busy, setBusy] = useState(false);
+  const [catalog, setCatalog] = useState<Book[]>([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
 
-  const cartBooks = BOOKS.filter((b) => items.includes(b.id));
-  const total = cartBooks.reduce((sum, b) => sum + b.price, 0);
+  useEffect(() => {
+    fetch("/api/books")
+      .then((res) => res.json())
+      .then((data) => setCatalog(data.books || []))
+      .catch(() => setCatalog([]));
+  }, []);
+
+  const cartBooks = catalog.filter((b) => items.includes(b.id));
+  const subtotal = cartBooks.reduce((sum, b) => sum + b.price, 0);
+  const { discount, total } = calculateDiscount(subtotal, couponDiscountPercent);
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponMessage("Please enter a coupon code.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/coupons/${encodeURIComponent(couponCode.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Coupon invalid");
+      setCouponDiscountPercent(data.coupon.discountPercent);
+      setCouponMessage(`Coupon applied: ${data.coupon.discountPercent}% off.`);
+    } catch (err) {
+      setCouponDiscountPercent(0);
+      setCouponMessage(err instanceof Error ? err.message : "Coupon invalid");
+    }
+  };
 
   const onCheckout = async () => {
     if (!token) {
@@ -52,10 +83,21 @@ export default function CartPage() {
       alert("Your cart is empty.");
       return;
     }
-    if (typeof window === "undefined" || typeof window.Razorpay === "undefined") {
-      alert(
-        "Razorpay Checkout failed to load. Check your internet connection and refresh."
-      );
+    try {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      if (typeof window.Razorpay === "undefined") {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+        await new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Razorpay failed to load"));
+          document.body.appendChild(script);
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert((err as Error).message || "Razorpay Checkout failed to load.");
       return;
     }
 
@@ -180,6 +222,13 @@ export default function CartPage() {
               {cartBooks.length} item{cartBooks.length === 1 ? "" : "s"}
             </p>
             <div className="summary-total">INR {total.toFixed(2)}</div>
+            {discount > 0 ? <p className="muted">Discount: INR {discount.toFixed(2)}</p> : null}
+            <div className="form-group" style={{ marginTop: "1rem" }}>
+              <label htmlFor="couponCode">Coupon Code</label>
+              <input id="couponCode" value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="WELCOME10" />
+            </div>
+            <button className="btn btn-outline btn-full" type="button" onClick={applyCoupon} style={{ marginBottom: "0.75rem" }}>Apply Coupon</button>
+            {couponMessage ? <p style={{ color: couponMessage.includes("applied") ? "green" : "crimson", marginBottom: "1rem" }}>{couponMessage}</p> : null}
             <button
               className="btn btn-primary btn-full"
               onClick={onCheckout}

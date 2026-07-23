@@ -2,20 +2,19 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { BOOKS, getBookBySlug } from "@/lib/books";
+import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
 import AddToCartButton from "./AddToCartButton";
 
-// Static pre-rendering for all 5 books → instant navigation
 export function generateStaticParams() {
   return BOOKS.map((b) => ({ slug: b.slug }));
 }
 
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
   params: { slug: string };
-}): Metadata {
-  const book = getBookBySlug(params.slug);
+}): Promise<Metadata> {
+  const book = await getBookBySlugFromDB(params.slug);
   if (!book) return { title: "Product Not Found" };
   return {
     title: `${book.title} | Veeer Sukhadiya Books`,
@@ -23,8 +22,8 @@ export function generateMetadata({
   };
 }
 
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const book = getBookBySlug(params.slug);
+export default async function ProductPage({ params }: { params: { slug: string } }) {
+  const book = await getBookBySlugFromDB(params.slug);
   if (!book) notFound();
 
   return (
@@ -54,6 +53,13 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           <div className="product-price">INR {book.price.toFixed(2)}</div>
 
           <p className="product-copy">{book.description}</p>
+
+          {book.htmlContent ? (
+            <div
+              className="product-html"
+              dangerouslySetInnerHTML={{ __html: book.htmlContent }}
+            />
+          ) : null}
 
           <div className="product-actions">
             <AddToCartButton bookId={book.id} />

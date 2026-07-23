@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -32,11 +31,6 @@ export default function RootLayout({
           <Footer />
         </Providers>
 
-        {/* Razorpay Checkout — same script tag as the original index.html */}
-        <Script
-          src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );

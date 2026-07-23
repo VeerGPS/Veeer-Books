@@ -1,3 +1,8 @@
+import { connectDB } from "@/lib/mongoose";
+import { BookModel } from "@/models";
+import { readFile } from "fs/promises";
+import path from "path";
+
 // Single source of truth for the book catalogue.
 // Mirrors the BOOKS array from the original logic.js / cart.html
 // so that *every* numeric ID and price is preserved exactly.
@@ -12,6 +17,7 @@ export type Book = {
   title: string;
   author: string;
   price: number;            // INR
+  actualPrice?: number;     // optional admin-managed original price
   color: string;            // background accent for cover
   accent: string;
   genre: string;
@@ -21,6 +27,7 @@ export type Book = {
   pdf: string;              // path under /public/books
   description: string;
   highlights?: string[];    // optional bullet list shown on product page
+  htmlContent?: string;
 };
 
 export const BOOKS: Book[] = [
@@ -117,3 +124,78 @@ export const getBookById = (id: number): Book | undefined =>
 
 export const getBookBySlug = (slug: string): Book | undefined =>
   BOOKS.find((b) => b.slug === slug);
+
+async function resolveHtmlContent(htmlContent: string | undefined) {
+  if (!htmlContent || !htmlContent.startsWith("/uploads/")) {
+    return htmlContent;
+  }
+
+  try {
+    const filePath = path.join(process.cwd(), "public", htmlContent.replace(/^\/+/, ""));
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    console.warn("Unable to read stored book HTML file:", htmlContent, error);
+    return htmlContent;
+  }
+}
+
+export async function getAllBooks(): Promise<Book[]> {
+  try {
+    await connectDB();
+    const docs = await BookModel.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+    if (!docs.length) return BOOKS;
+
+    return Promise.all(
+      docs.map(async (doc) => ({
+        id: doc.id,
+        slug: doc.slug,
+        title: doc.title,
+        author: doc.author,
+        price: doc.sellingPrice ?? doc.price,
+        actualPrice: doc.actualPrice,
+        color: doc.color,
+        accent: doc.accent,
+        genre: doc.genre,
+        pages: doc.pages,
+        cover: doc.cover,
+        reader: doc.reader,
+        pdf: doc.pdf,
+        description: doc.description,
+        highlights: doc.highlights,
+        htmlContent: await resolveHtmlContent(doc.htmlContent),
+      }))
+    );
+  } catch (error) {
+    console.error("getAllBooks error:", error);
+    return BOOKS;
+  }
+}
+
+export async function getBookBySlugFromDB(slug: string): Promise<Book | null> {
+  try {
+    await connectDB();
+    const doc = await BookModel.findOne({ slug, isActive: true }).lean();
+    if (!doc) return null;
+    return {
+      id: doc.id,
+      slug: doc.slug,
+      title: doc.title,
+      author: doc.author,
+      price: doc.sellingPrice ?? doc.price,
+      actualPrice: doc.actualPrice,
+      color: doc.color,
+      accent: doc.accent,
+      genre: doc.genre,
+      pages: doc.pages,
+      cover: doc.cover,
+      reader: doc.reader,
+      pdf: doc.pdf,
+      description: doc.description,
+      highlights: doc.highlights,
+      htmlContent: await resolveHtmlContent(doc.htmlContent),
+    };
+  } catch (error) {
+    console.error("getBookBySlugFromDB error:", error);
+    return null;
+  }
+}

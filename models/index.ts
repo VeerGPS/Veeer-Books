@@ -1,7 +1,7 @@
 // MongoDB schemas — preserved EXACTLY as in the original
 // server/models/index.js to avoid any data-shape drift.
 
-import mongoose, { Schema, model, models, Types } from "mongoose";
+import mongoose, { Schema, model, Types } from "mongoose";
 
 // ─── User ────────────────────────────────────────────────────────────────────
 export interface IUser {
@@ -46,6 +46,74 @@ const otpSchema = new Schema<IOTP>({
 // Auto-expire OTPs at expiresAt (TTL index)
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// ─── Book ──────────────────────────────────────────────────────────────────
+export interface IBook {
+  _id: Types.ObjectId;
+  id: number;
+  slug: string;
+  title: string;
+  author: string;
+  actualPrice: number;
+  sellingPrice: number;
+  price: number;
+  color: string;
+  accent: string;
+  genre: string;
+  pages: number;
+  cover: string;
+  reader: string;
+  pdf: string;
+  description: string;
+  htmlContent: string;
+  highlights: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const bookSchema = new Schema<IBook>(
+  {
+    id: { type: Number, required: true, unique: true },
+    slug: { type: String, required: true, unique: true, lowercase: true },
+    title: { type: String, required: true },
+    author: { type: String, required: true },
+    actualPrice: { type: Number, required: true, default: 0 },
+    sellingPrice: { type: Number, required: true, default: 0 },
+    price: { type: Number, required: true, default: 0 },
+    color: { type: String, default: "#2c3e50" },
+    accent: { type: String, default: "#1a252f" },
+    genre: { type: String, default: "General" },
+    pages: { type: Number, default: 0 },
+    cover: { type: String, default: "/images/default-book.png" },
+    reader: { type: String, default: "/readers/default-reader.html" },
+    pdf: { type: String, default: "/books/default-book.pdf" },
+    description: { type: String, required: true },
+    htmlContent: { type: String, required: true },
+    highlights: [{ type: String }],
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
+// ─── Coupon ─────────────────────────────────────────────────────────────────
+export interface ICoupon {
+  _id: Types.ObjectId;
+  code: string;
+  discountPercent: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const couponSchema = new Schema<ICoupon>(
+  {
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    discountPercent: { type: Number, required: true, default: 0 },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
 // ─── Order ───────────────────────────────────────────────────────────────────
 export interface IOrder {
   _id: Types.ObjectId;
@@ -79,9 +147,11 @@ const orderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
-// `models.X || model("X", schema)` is the canonical pattern for Next.js
+// `mongoose.models.X || model("X", schema)` is the canonical pattern for Next.js
 // hot-reload — without it, every reload tries to redefine the model and throws
 // `OverwriteModelError`.
-export const User = (models.User as mongoose.Model<IUser>) || model<IUser>("User", userSchema);
-export const OTP = (models.OTP as mongoose.Model<IOTP>) || model<IOTP>("OTP", otpSchema);
-export const Order = (models.Order as mongoose.Model<IOrder>) || model<IOrder>("Order", orderSchema);
+export const User = (mongoose.models.User as mongoose.Model<IUser>) || model<IUser>("User", userSchema);
+export const OTP = (mongoose.models.OTP as mongoose.Model<IOTP>) || model<IOTP>("OTP", otpSchema);
+export const BookModel = (mongoose.models.Book as mongoose.Model<IBook>) || model<IBook>("Book", bookSchema);
+export const CouponModel = (mongoose.models.Coupon as mongoose.Model<ICoupon>) || model<ICoupon>("Coupon", couponSchema);
+export const Order = (mongoose.models.Order as mongoose.Model<IOrder>) || model<IOrder>("Order", orderSchema);
