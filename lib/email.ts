@@ -3,6 +3,12 @@
 
 import nodemailer from "nodemailer";
 
+export type SendOTPResult = {
+  success: boolean;
+  fallbackOtp?: string;
+  error?: string;
+};
+
 const isProd = process.env.NODE_ENV === "production";
 
 const hasSMTPConfig = () =>
@@ -60,32 +66,34 @@ const createTransporter = async () => {
   return transporter;
 };
 
-export const sendOTP = async (email: string, otp: string): Promise<void> => {
-  const transporter = await createTransporter();
-
-  const mailOptions = {
-    from: `"Veeer Sukhadiya Books" <${process.env.EMAIL_USER ?? "noreply@example.com"}>`,
-    to: email,
-    subject: "Verify your email - Veeer Books",
-    text: `Your OTP for verification is: ${otp}. It expires in 10 minutes.`,
-  };
-
+export const sendOTP = async (email: string, otp: string): Promise<SendOTPResult> => {
   try {
+    const transporter = await createTransporter();
+
+    const mailOptions = {
+      from: `"Veeer Sukhadiya Books" <${process.env.EMAIL_USER ?? "noreply@example.com"}>`,
+      to: email,
+      subject: "Verify your email - Veeer Books",
+      text: `Your OTP for verification is: ${otp}. It expires in 10 minutes.`,
+    };
+
     const info = await transporter.sendMail(mailOptions);
 
     if (!isProd && transporter.options && "streamTransport" in transporter.options) {
       console.info("[DEV EMAIL] OTP generation succeeded:", otp);
       console.info("[DEV EMAIL] Raw message:\n", (info as any).message?.toString?.());
     }
+
+    return { success: true };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[EMAIL] OTP send failed:", message);
+
     if (!isProd) {
-      console.warn(
-        "[DEV EMAIL] Failed to send email in development. OTP:",
-        otp,
-        error
-      );
-      return;
+      console.warn("[DEV EMAIL] Failed to send email in development. OTP:", otp, error);
+      return { success: false, fallbackOtp: otp, error: message };
     }
-    throw error;
+
+    return { success: false, fallbackOtp: otp, error: message };
   }
 };

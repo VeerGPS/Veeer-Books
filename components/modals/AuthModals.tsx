@@ -143,7 +143,7 @@ function SignupModal() {
     setError(null);
     setBusy(true);
     try {
-      await apiSignup({
+      const data = await apiSignup({
         fullName,
         email,
         password,
@@ -151,7 +151,13 @@ function SignupModal() {
       });
       // Stash email so the OTP modal can use it
       localStorage.setItem("temp_email", email);
-      alert("OTP sent to your email!");
+      if (data.otp) {
+        localStorage.setItem("temp_otp", data.otp);
+        alert(`OTP generated. Email delivery failed, so please use code ${data.otp}.`);
+      } else {
+        localStorage.removeItem("temp_otp");
+        alert("OTP sent to your email!");
+      }
       show("otp");
     } catch (err) {
       setError((err as Error).message || "Signup failed");
@@ -243,6 +249,15 @@ function OtpModal() {
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fallbackOtp, setFallbackOtp] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedOtp = localStorage.getItem("temp_otp");
+    if (storedOtp) {
+      setFallbackOtp(storedOtp);
+      setOtp(storedOtp);
+    }
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,6 +272,7 @@ function OtpModal() {
       const data = await apiVerifyOtp({ email, otp });
       setSession(data.token, data.purchasedBooks || []);
       localStorage.removeItem("temp_email");
+      localStorage.removeItem("temp_otp");
       alert("Email verified successfully! You are now logged in.");
       close();
       window.location.reload();
@@ -270,7 +286,9 @@ function OtpModal() {
   return (
     <ModalShell title="Verify Email" onClose={close}>
       <p style={{ marginBottom: "1.25rem", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-        We sent a 6-digit code to your email.
+        {fallbackOtp
+          ? `We could not deliver the email automatically. Please use the fallback code ${fallbackOtp}.`
+          : "We sent a 6-digit code to your email."}
       </p>
       <form onSubmit={onSubmit}>
         <div className="form-group">

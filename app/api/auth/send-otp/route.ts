@@ -29,9 +29,16 @@ export async function POST(req: NextRequest) {
 
     await OTP.deleteMany({ email });
     await OTP.create({ email, otpHash, expiresAt });
-    await sendOTP(email, otp);
+    const emailResult = await sendOTP(email, otp);
 
-    return NextResponse.json({ message: "OTP sent successfully" });
+    if (!emailResult.success) {
+      console.warn("[AUTH] Resend OTP email failed; continuing with fallback OTP", emailResult.error);
+    }
+
+    return NextResponse.json({
+      message: emailResult.success ? "OTP sent successfully" : "OTP generated but email delivery failed. Use the fallback code provided.",
+      otp: emailResult.success ? undefined : otp,
+    });
   } catch (err) {
     console.error("Send OTP error:", err);
     return NextResponse.json(
