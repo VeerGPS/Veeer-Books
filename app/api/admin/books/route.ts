@@ -6,6 +6,15 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
+export const runtime = "nodejs";
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
+};
+
 const MAX_HTML_CONTENT_BYTES = 1024 * 1024;
 
 function sanitizeReaderHtml(html: string) {
@@ -73,6 +82,16 @@ export async function POST(req: NextRequest) {
     if (contentType.includes("multipart/form-data")) {
       formData = await req.formData();
       body = Object.fromEntries(formData.entries());
+
+      const readerFile = formData.get("readerFile") as File | null;
+      if (!body.htmlContent && readerFile) {
+        try {
+          body.htmlContent = await readerFile.text();
+        } catch (error) {
+          console.error("Unable to read uploaded reader HTML file:", error);
+          return NextResponse.json({ error: "Invalid reader HTML file" }, { status: 400 });
+        }
+      }
     } else {
       const rawBody = await req.text();
       if (rawBody) {

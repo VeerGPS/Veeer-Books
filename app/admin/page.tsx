@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [readerFile, setReaderFile] = useState<File | null>(null);
+  const MAX_UPLOAD_SIZE = 40 * 1024 * 1024; // 40MB
   const [form, setForm] = useState({
     title: "",
     author: "",
@@ -52,6 +53,10 @@ export default function AdminPage() {
     setError("");
 
     try {
+      if (coverFile?.size > MAX_UPLOAD_SIZE || pdfFile?.size > MAX_UPLOAD_SIZE || readerFile?.size > MAX_UPLOAD_SIZE) {
+        throw new Error("One of the uploaded files is too large. Please use files smaller than 40MB.");
+      }
+
       const uploadData = new FormData();
       uploadData.append("title", form.title);
       uploadData.append("author", form.author);
@@ -59,7 +64,9 @@ export default function AdminPage() {
       uploadData.append("actualPrice", String(Number(form.actualPrice || 0)));
       uploadData.append("sellingPrice", String(Number(form.sellingPrice || 0)));
       uploadData.append("description", form.description);
-      uploadData.append("htmlContent", form.htmlContent);
+      if (form.htmlContent) {
+        uploadData.append("htmlContent", form.htmlContent);
+      }
       uploadData.append("genre", form.genre);
       uploadData.append("pages", String(Number(form.pages || 0)));
       uploadData.append("color", "#2c3e50");
