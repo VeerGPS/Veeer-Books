@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 export const runtime = "nodejs";
 
 const MAX_HTML_CONTENT_BYTES = 1024 * 1024;
+const UPLOAD_ROOT = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
 function sanitizeReaderHtml(html: string) {
   if (!html) return html;
@@ -24,7 +25,7 @@ function sanitizeReaderHtml(html: string) {
 }
 
 async function persistHtmlContent(htmlContent: string, slug: string) {
-  if (!htmlContent || htmlContent.startsWith("/uploads/")) {
+  if (!htmlContent || htmlContent.startsWith("/api/uploads/")) {
     return htmlContent;
   }
 
@@ -35,13 +36,13 @@ async function persistHtmlContent(htmlContent: string, slug: string) {
     return maybeSanitized;
   }
 
-  const htmlDir = path.join(process.cwd(), "public", "uploads", "html");
+  const htmlDir = path.join(UPLOAD_ROOT, "html");
   await mkdir(htmlDir, { recursive: true });
 
   const safeFileName = `${slug || randomUUID()}-${Date.now()}.html`;
   const filePath = path.join(htmlDir, safeFileName);
   await writeFile(filePath, maybeSanitized, "utf8");
-  return `/uploads/html/${safeFileName}`;
+  return `/api/uploads/html/${safeFileName}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
 
       const ext = path.extname(file.name || "") || ".bin";
       const fileName = `${safeSlug || randomUUID()}-${Date.now()}${ext}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
+      const uploadDir = path.join(UPLOAD_ROOT, folder);
       await mkdir(uploadDir, { recursive: true });
       const filePath = path.join(uploadDir, fileName);
       const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -158,7 +159,7 @@ export async function POST(req: NextRequest) {
       } else {
         await writeFile(filePath, fileBuffer);
       }
-      return `/uploads/${folder}/${fileName}`;
+      return `/api/uploads/${folder}/${fileName}`;
     };
 
     const coverFile = formData?.get("coverFile") as File | null;
@@ -194,5 +195,87 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Admin create book error:", error);
     return NextResponse.json({ error: "Unable to save book" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const auth = req.headers.get("x-admin-password");
+    if (!isAdminPasswordValid(auth)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id, title, author, slug, actualPrice, sellingPrice, description, htmlContent, genre, pages, color, accent, isActive } = await req.json();
+    if (!id || !title || !author || !description) {
+      return NextResponse.json({ error: "Missing required book data" }, { status: 400 });
+    }
+
+    const safeSlug = String(slug || title)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const price = Number(sellingPrice ?? actualPrice ?? 0);
+    const actual = Number(actualPrice ?? price ?? 0);
+    if (!safeSlug || !Number.isFinite(price) || !Number.isFinite(actual)) {
+      return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
+    }
+
+    await connectDB();
+    const duplicate = await BookModel.findOne({ slug: safeSlug, _id: { $ne: id } }).lean();
+    if (duplicate) {
+      return NextResponse.json({ error: "Another book already uses this slug" }, { status: 400 });
+    }
+
+    const updates: Record<string, unknown> = {
+      title,
+      author,
+      slug: safeSlug,
+      actualPrice: actual,
+      sellingPrice: price,
+      price,
+      description,
+      genre: genre || "General",
+      pages: Number(pages || 0),
+      color: color || "#2c3e50",
+      accent: accent || "#1a252f",
+      isActive: isActive !== false,
+    };
+    if (typeof htmlContent === "string" && htmlContent.trim()) {
+      updates.htmlContent = await persistHtmlContent(htmlContent, safeSlug);
+    }
+
+    const book = await BookModel.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+    if (!book) {
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
+    }
+    return NextResponse.json({ book, message: "Book updated" });
+  } catch (error) {
+    console.error("Admin update book error:", error);
+    return NextResponse.json({ error: "Unable to update book" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = req.headers.get("x-admin-password");
+    if (!isAdminPasswordValid(auth)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Book ID is required" }, { status: 400 });
+    }
+
+    await connectDB();
+    const book = await BookModel.findByIdAndDelete(id);
+    if (!book) {
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
+    }
+    return NextResponse.json({ message: "Book deleted" });
+  } catch (error) {
+    console.error("Admin delete book error:", error);
+    return NextResponse.json({ error: "Unable to delete book" }, { status: 500 });
   }
 }
