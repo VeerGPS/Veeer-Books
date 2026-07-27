@@ -224,8 +224,9 @@ export default function AdminPage() {
     setError("");
 
     try {
+      const bookId = editingBook._id || String(editingBook.id);
       const uploadData = new FormData();
-      uploadData.append("id", editingBook._id);
+      uploadData.append("id", bookId);
       uploadData.append("title", editingBook.title);
       uploadData.append("author", editingBook.author);
       uploadData.append("slug", editingBook.slug);
@@ -263,19 +264,20 @@ export default function AdminPage() {
     }
   };
 
-  const deleteBook = async (id: string, title: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
+  const deleteBook = async (book: AdminBook) => {
+    const bookId = book._id || String(book.id);
+    if (!window.confirm(`Are you sure you want to delete "${book.title}"? This cannot be undone.`)) return;
 
-    setDeletingBookId(id);
+    setDeletingBookId(bookId);
     try {
-      const res = await fetch(`/api/admin/books?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/admin/books?id=${encodeURIComponent(bookId)}`, {
         method: "DELETE",
         headers: { "x-admin-password": ADMIN_PASSWORD },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete book");
-      setBooks((prev) => prev.filter((b) => b._id !== id));
-      alert(`✅ Book "${title}" deleted.`);
+      setBooks((prev) => prev.filter((b) => (b._id || String(b.id)) !== bookId));
+      alert(`✅ Book "${book.title}" deleted.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete book");
     } finally {
@@ -335,61 +337,87 @@ export default function AdminPage() {
     }
   };
 
+  // Light Theme styling helper
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.75rem 1rem",
+    borderRadius: "8px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    color: "#0f172a",
+    fontSize: "0.95rem",
+    outline: "none",
+    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    marginBottom: "0.4rem",
+    fontWeight: 600,
+    color: "#0f172a",
+    fontSize: "0.9rem",
+  };
+
   if (!authorized) {
     return (
-      <main className="container" style={{ padding: "6rem 1rem 4rem" }}>
-        <div className="policy-card" style={{ maxWidth: 560, margin: "0 auto" }}>
-          <h1 className="section-title" style={{ paddingTop: 0, marginBottom: "1rem" }}>Admin Access</h1>
-          <p className="muted" style={{ marginBottom: "1.25rem" }}>Enter the admin password to continue.</p>
-          <div className="form-group">
-            <label htmlFor="admin-password">Password</label>
+      <main style={{ backgroundColor: "#f8fafc", minHeight: "100vh", padding: "6rem 1rem 4rem", color: "#0f172a" }}>
+        <div style={{ maxWidth: 520, margin: "0 auto", padding: "2rem", backgroundColor: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 20px rgba(0, 0, 0, 0.06)" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem", color: "#0f172a", textAlign: "center" }}>Admin Access</h1>
+          <p style={{ color: "#475569", marginBottom: "1.5rem", textAlign: "center" }}>Enter the admin password to manage books and store configuration.</p>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="admin-password" style={labelStyle}>Password</label>
             <input
               id="admin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
+              style={inputStyle}
             />
           </div>
-          {error ? <p style={{ color: "crimson", marginBottom: "1rem" }}>{error}</p> : null}
-          <button className="btn btn-primary btn-full" onClick={unlock}>Enter Admin Panel</button>
+          {error ? <p style={{ color: "#dc2626", marginBottom: "1rem", fontWeight: 500 }}>{error}</p> : null}
+          <button className="btn btn-primary btn-full" onClick={unlock} style={{ padding: "0.85rem", fontSize: "1rem", fontWeight: 600 }}>Enter Admin Panel</button>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="container" style={{ padding: "6rem 1rem 4rem" }}>
-      <div className="policy-card" style={{ maxWidth: 1000, margin: "0 auto" }}>
-        <h1 className="section-title" style={{ paddingTop: 0, marginBottom: "0.5rem" }}>Admin Dashboard</h1>
-        <p className="muted" style={{ marginBottom: "2rem" }}>Manage book catalogue, pricing, uploaded files, and coupons.</p>
-
-        {/* ─── Metrics Bar ─── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
-          <div style={{ padding: "1.5rem", borderRadius: "10px", background: "var(--card-bg, #1e293b)", border: "1px solid var(--border)", textAlign: "center" }}>
-            <span style={{ fontSize: "0.85rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Total Books</span>
-            <div style={{ fontSize: "2.25rem", fontWeight: "700", color: "#c5a059", marginTop: "0.25rem" }}>{books.length}</div>
+    <main style={{ backgroundColor: "#f8fafc", minHeight: "100vh", padding: "6rem 1rem 4rem", color: "#0f172a" }}>
+      <div style={{ maxWidth: 1060, margin: "0 auto", backgroundColor: "#ffffff", padding: "2.5rem", borderRadius: "16px", border: "1px solid #e2e8f0", boxShadow: "0 4px 25px rgba(0, 0, 0, 0.05)" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", paddingBottom: "1.25rem", borderBottom: "2px solid #f1f5f9" }}>
+          <div>
+            <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>Admin Dashboard</h1>
+            <p style={{ color: "#475569", margin: "0.25rem 0 0 0", fontSize: "0.95rem" }}>Manage book catalogue, pricing, uploaded files, and coupons with light mode theme.</p>
           </div>
-          <div style={{ padding: "1.5rem", borderRadius: "10px", background: "var(--card-bg, #1e293b)", border: "1px solid var(--border)", textAlign: "center" }}>
-            <span style={{ fontSize: "0.85rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "1px" }}>Active Coupons</span>
-            <div style={{ fontSize: "2.25rem", fontWeight: "700", color: "#4ade80", marginTop: "0.25rem" }}>{coupons.filter(c => c.active).length}</div>
+          <button className="btn btn-outline btn-sm" onClick={loadBooks} disabled={booksLoading} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
+            {booksLoading ? "Refreshing..." : "🔄 Refresh Catalogue"}
+          </button>
+        </div>
+
+        {/* ─── Metrics Cards ─── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+          <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
+            <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Total Books</span>
+            <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "#b45309", marginTop: "0.25rem" }}>{books.length}</div>
+          </div>
+          <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
+            <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Active Coupons</span>
+            <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "#15803d", marginTop: "0.25rem" }}>{coupons.filter(c => c.active).length}</div>
           </div>
         </div>
 
-        {/* ─── Book Catalogue Table / List ─── */}
+        {/* ─── Book Management List ─── */}
         <div style={{ marginBottom: "3rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h2 className="section-title" style={{ fontSize: "1.4rem", margin: 0 }}>Book Catalogue ({books.length})</h2>
-            <button className="btn btn-outline btn-sm" onClick={loadBooks} disabled={booksLoading}>
-              {booksLoading ? "Refreshing..." : "🔄 Refresh"}
-            </button>
-          </div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>Book Catalogue ({books.length})</h2>
 
-          {bookMessage ? <p style={{ color: "crimson", marginBottom: "1rem" }}>{bookMessage}</p> : null}
-          {booksLoading && books.length === 0 ? <p className="muted">Loading book catalogue...</p> : null}
+          {bookMessage ? <p style={{ color: "#dc2626", marginBottom: "1rem", fontWeight: 500 }}>{bookMessage}</p> : null}
+          {booksLoading && books.length === 0 ? <p style={{ color: "#475569" }}>Loading book catalogue...</p> : null}
 
           {books.length === 0 && !booksLoading ? (
-            <p className="muted" style={{ padding: "2rem", textAlign: "center", border: "1px dashed var(--border)", borderRadius: "8px" }}>
+            <p style={{ padding: "2.5rem", textAlign: "center", border: "2px dashed #cbd5e1", borderRadius: "12px", color: "#475569", backgroundColor: "#f8fafc" }}>
               No books added yet. Use the form below to publish your first book.
             </p>
           ) : null}
@@ -397,19 +425,20 @@ export default function AdminPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {books.map((b) => (
               <div
-                key={b._id}
+                key={b._id || b.id}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "70px 1fr auto",
                   gap: "1.25rem",
                   alignItems: "center",
-                  padding: "1rem",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  background: "var(--card-bg, rgba(255,255,255,0.03))",
+                  padding: "1.25rem",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#ffffff",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
                 }}
               >
-                <div style={{ width: 70, height: 95, position: "relative", borderRadius: "4px", overflow: "hidden", background: b.color || "#1e293b" }}>
+                <div style={{ width: 70, height: 95, position: "relative", borderRadius: "6px", overflow: "hidden", border: "1px solid #e2e8f0", backgroundColor: "#f1f5f9" }}>
                   <Image
                     src={b.cover || "/images/default-book.svg"}
                     alt={b.title}
@@ -420,31 +449,31 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <h3 style={{ fontSize: "1.1rem", margin: "0 0 0.25rem 0", fontWeight: 600 }}>{b.title}</h3>
-                  <p className="muted" style={{ margin: "0 0 0.4rem 0", fontSize: "0.9rem" }}>By {b.author} • {b.genre} • {b.pages} pages</p>
-                  <div style={{ display: "flex", gap: "1rem", alignItems: "center", fontSize: "0.9rem" }}>
-                    <span style={{ color: "#c5a059", fontWeight: 600 }}>₹{b.sellingPrice || b.price}</span>
+                  <h3 style={{ fontSize: "1.15rem", margin: "0 0 0.25rem 0", fontWeight: 700, color: "#0f172a" }}>{b.title}</h3>
+                  <p style={{ margin: "0 0 0.4rem 0", fontSize: "0.9rem", color: "#475569" }}>By <strong>{b.author}</strong> • {b.genre} • {b.pages} pages</p>
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "center", fontSize: "0.95rem" }}>
+                    <span style={{ color: "#b45309", fontWeight: 700 }}>₹{b.sellingPrice || b.price}</span>
                     {b.actualPrice > (b.sellingPrice || b.price) ? (
-                      <span className="muted" style={{ textDecoration: "line-through" }}>₹{b.actualPrice}</span>
+                      <span style={{ color: "#64748b", textDecoration: "line-through", fontSize: "0.85rem" }}>₹{b.actualPrice}</span>
                     ) : null}
-                    <span style={{ padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", background: b.isActive ? "#166534" : "#991b1b", color: "#fff" }}>
-                      {b.isActive ? "Live" : "Inactive"}
+                    <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 600, backgroundColor: b.isActive ? "#dcfce7" : "#fee2e2", color: b.isActive ? "#15803d" : "#b91c1c" }}>
+                      {b.isActive ? "Live on Store" : "Hidden / Inactive"}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-outline btn-sm" type="button" onClick={() => handleEditBook(b)}>
+                <div style={{ display: "flex", gap: "0.6rem" }}>
+                  <button className="btn btn-outline btn-sm" type="button" onClick={() => handleEditBook(b)} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
                     ✏️ Edit
                   </button>
                   <button
                     className="btn btn-outline btn-sm"
                     type="button"
-                    style={{ borderColor: "crimson", color: "crimson" }}
-                    onClick={() => deleteBook(b._id, b.title)}
-                    disabled={deletingBookId === b._id}
+                    style={{ borderColor: "#fca5a5", color: "#dc2626", backgroundColor: "#fff5f5" }}
+                    onClick={() => deleteBook(b)}
+                    disabled={deletingBookId === (b._id || String(b.id))}
                   >
-                    {deletingBookId === b._id ? "Deleting..." : "🗑️ Delete"}
+                    {deletingBookId === (b._id || String(b.id)) ? "Deleting..." : "🗑️ Delete"}
                   </button>
                 </div>
               </div>
@@ -452,173 +481,173 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* ─── Edit Book Modal / Form Section ─── */}
+        {/* ─── Edit Book Form Section ─── */}
         {editingBook ? (
-          <div style={{ padding: "1.5rem", borderRadius: "8px", border: "2px solid #c5a059", background: "var(--card-bg, #0f172a)", marginBottom: "3rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h2 className="section-title" style={{ fontSize: "1.3rem", margin: 0, color: "#c5a059" }}>Edit Book: {editingBook.title}</h2>
-              <button className="btn btn-outline btn-sm" type="button" onClick={() => setEditingBook(null)}>
+          <div style={{ padding: "2rem", borderRadius: "12px", border: "2px solid #b45309", backgroundColor: "#fffbebf5", marginBottom: "3rem", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.4rem", margin: 0, color: "#b45309", fontWeight: 700 }}>✏️ Edit Book: {editingBook.title}</h2>
+              <button className="btn btn-outline btn-sm" type="button" onClick={() => setEditingBook(null)} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
                 ✖ Cancel Edit
               </button>
             </div>
 
             <form onSubmit={saveEditBook}>
-              <div className="form-group">
-                <label htmlFor="edit-title">Book Title</label>
-                <input id="edit-title" required value={editingBook.title} onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-title" style={labelStyle}>Book Title *</label>
+                <input id="edit-title" required value={editingBook.title} onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-author">Author</label>
-                <input id="edit-author" required value={editingBook.author} onChange={(e) => setEditingBook({ ...editingBook, author: e.target.value })} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-author" style={labelStyle}>Author *</label>
+                <input id="edit-author" required value={editingBook.author} onChange={(e) => setEditingBook({ ...editingBook, author: e.target.value })} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-slug">Slug</label>
-                <input id="edit-slug" value={editingBook.slug} onChange={(e) => setEditingBook({ ...editingBook, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-slug" style={labelStyle}>Slug (URL string)</label>
+                <input id="edit-slug" value={editingBook.slug} onChange={(e) => setEditingBook({ ...editingBook, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })} style={inputStyle} />
               </div>
-              <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div className="form-group">
-                  <label htmlFor="edit-actualPrice">Actual Price (INR)</label>
-                  <input id="edit-actualPrice" type="number" min="1" required value={editingBook.actualPrice} onChange={(e) => setEditingBook({ ...editingBook, actualPrice: Number(e.target.value) })} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+                <div>
+                  <label htmlFor="edit-actualPrice" style={labelStyle}>Actual Price (INR) *</label>
+                  <input id="edit-actualPrice" type="number" min="1" required value={editingBook.actualPrice} onChange={(e) => setEditingBook({ ...editingBook, actualPrice: Number(e.target.value) })} style={inputStyle} />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="edit-sellingPrice">Selling Price (INR)</label>
-                  <input id="edit-sellingPrice" type="number" min="1" required value={editingBook.sellingPrice || editingBook.price} onChange={(e) => setEditingBook({ ...editingBook, sellingPrice: Number(e.target.value), price: Number(e.target.value) })} />
+                <div>
+                  <label htmlFor="edit-sellingPrice" style={labelStyle}>Selling Price (INR) *</label>
+                  <input id="edit-sellingPrice" type="number" min="1" required value={editingBook.sellingPrice || editingBook.price} onChange={(e) => setEditingBook({ ...editingBook, sellingPrice: Number(e.target.value), price: Number(e.target.value) })} style={inputStyle} />
                 </div>
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-genre">Genre</label>
-                <input id="edit-genre" value={editingBook.genre} onChange={(e) => setEditingBook({ ...editingBook, genre: e.target.value })} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-genre" style={labelStyle}>Genre</label>
+                <input id="edit-genre" value={editingBook.genre} onChange={(e) => setEditingBook({ ...editingBook, genre: e.target.value })} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-pages">Pages</label>
-                <input id="edit-pages" type="number" min="0" value={editingBook.pages} onChange={(e) => setEditingBook({ ...editingBook, pages: Number(e.target.value) })} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-pages" style={labelStyle}>Pages</label>
+                <input id="edit-pages" type="number" min="0" value={editingBook.pages} onChange={(e) => setEditingBook({ ...editingBook, pages: Number(e.target.value) })} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-description">Description</label>
-                <textarea id="edit-description" rows={4} required value={editingBook.description} onChange={(e) => setEditingBook({ ...editingBook, description: e.target.value })} style={{ width: "100%", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border)" }} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-description" style={labelStyle}>Description *</label>
+                <textarea id="edit-description" rows={4} required value={editingBook.description} onChange={(e) => setEditingBook({ ...editingBook, description: e.target.value })} style={{ ...inputStyle, fontFamily: "inherit" }} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-htmlContent">Book HTML Content</label>
-                <textarea id="edit-htmlContent" rows={8} value={editingBook.htmlContent} onChange={(e) => setEditingBook({ ...editingBook, htmlContent: e.target.value })} style={{ width: "100%", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border)" }} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-htmlContent" style={labelStyle}>Book HTML Reader Content</label>
+                <textarea id="edit-htmlContent" rows={8} value={editingBook.htmlContent} onChange={(e) => setEditingBook({ ...editingBook, htmlContent: e.target.value })} style={{ ...inputStyle, fontFamily: "inherit" }} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-coverFile">Replace Cover Image (Optional)</label>
-                <input id="edit-coverFile" type="file" accept="image/*" onChange={(e) => setEditCoverFile(e.target.files?.[0] || null)} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-coverFile" style={labelStyle}>Replace Cover Image File (Optional)</label>
+                <input id="edit-coverFile" type="file" accept="image/*" onChange={(e) => setEditCoverFile(e.target.files?.[0] || null)} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-readerFile">Replace Reader HTML (Optional)</label>
-                <input id="edit-readerFile" type="file" accept=".html,text/html" onChange={(e) => setEditReaderFile(e.target.files?.[0] || null)} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-readerFile" style={labelStyle}>Replace Reader HTML File (Optional)</label>
+                <input id="edit-readerFile" type="file" accept=".html,text/html" onChange={(e) => setEditReaderFile(e.target.files?.[0] || null)} style={inputStyle} />
               </div>
-              <div className="form-group">
-                <label htmlFor="edit-pdfFile">Replace PDF (Optional)</label>
-                <input id="edit-pdfFile" type="file" accept="application/pdf" onChange={(e) => setEditPdfFile(e.target.files?.[0] || null)} />
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="edit-pdfFile" style={labelStyle}>Replace PDF File (Optional)</label>
+                <input id="edit-pdfFile" type="file" accept="application/pdf" onChange={(e) => setEditPdfFile(e.target.files?.[0] || null)} style={inputStyle} />
               </div>
-              <div className="form-row-checkbox" style={{ marginBottom: "1rem" }}>
-                <input id="edit-isActive" type="checkbox" checked={editingBook.isActive} onChange={(e) => setEditingBook({ ...editingBook, isActive: e.target.checked })} />
-                <label htmlFor="edit-isActive">Is Live on Store</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+                <input id="edit-isActive" type="checkbox" checked={editingBook.isActive} onChange={(e) => setEditingBook({ ...editingBook, isActive: e.target.checked })} style={{ width: 18, height: 18, cursor: "pointer" }} />
+                <label htmlFor="edit-isActive" style={{ fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Is Live on Store</label>
               </div>
               <div style={{ display: "flex", gap: "1rem" }}>
-                <button className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>{submitting ? "Updating..." : "Save Changes"}</button>
-                <button className="btn btn-outline" type="button" onClick={() => setEditingBook(null)}>Cancel</button>
+                <button className="btn btn-primary" style={{ flex: 1, padding: "0.85rem", fontWeight: 600 }} disabled={submitting}>{submitting ? "Updating Book..." : "Save Changes"}</button>
+                <button className="btn btn-outline" type="button" onClick={() => setEditingBook(null)} style={{ padding: "0.85rem", color: "#0f172a", borderColor: "#cbd5e1" }}>Cancel</button>
               </div>
             </form>
           </div>
         ) : null}
 
         {/* ─── Add New Book Form Section ─── */}
-        <hr style={{ margin: "2.5rem 0", borderColor: "var(--border)" }} />
-        <h2 className="section-title" style={{ fontSize: "1.4rem", marginBottom: "1rem" }}>➕ Add New Book</h2>
-        <p className="muted" style={{ marginBottom: "1.5rem" }}>Upload a new book and make it live on the website instantly.</p>
+        <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>➕ Add New Book</h2>
+        <p style={{ color: "#475569", marginBottom: "1.75rem", fontSize: "0.95rem" }}>Upload a new book and make it live on the website instantly.</p>
 
         <form onSubmit={submitBook}>
-          <div className="form-group">
-            <label htmlFor="title">Book Title *</label>
-            <input id="title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. The Art & Science of Prompting" />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="title" style={labelStyle}>Book Title *</label>
+            <input id="title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. The Art & Science of Prompting" style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="author">Author *</label>
-            <input id="author" required value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} placeholder="e.g. Veer Sukhadiya" />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="author" style={labelStyle}>Author *</label>
+            <input id="author" required value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} placeholder="e.g. Veer Sukhadiya" style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="slug">Slug (URL string)</label>
-            <input id="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })} placeholder="auto-generated if left empty" />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="slug" style={labelStyle}>Slug (URL string)</label>
+            <input id="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })} placeholder="auto-generated if left empty" style={inputStyle} />
           </div>
-          <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-            <div className="form-group">
-              <label htmlFor="actualPrice">Actual Price (INR) *</label>
-              <input id="actualPrice" type="number" min="1" required value={form.actualPrice} onChange={(e) => setForm({ ...form, actualPrice: e.target.value })} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
+            <div>
+              <label htmlFor="actualPrice" style={labelStyle}>Actual Price (INR) *</label>
+              <input id="actualPrice" type="number" min="1" required value={form.actualPrice} onChange={(e) => setForm({ ...form, actualPrice: e.target.value })} style={inputStyle} />
             </div>
-            <div className="form-group">
-              <label htmlFor="sellingPrice">Selling Price (INR) *</label>
-              <input id="sellingPrice" type="number" min="1" required value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} />
+            <div>
+              <label htmlFor="sellingPrice" style={labelStyle}>Selling Price (INR) *</label>
+              <input id="sellingPrice" type="number" min="1" required value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} style={inputStyle} />
             </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="genre">Genre</label>
-            <input id="genre" value={form.genre} onChange={(e) => setForm({ ...form, genre: e.target.value })} placeholder="e.g. AI / Technology" />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="genre" style={labelStyle}>Genre</label>
+            <input id="genre" value={form.genre} onChange={(e) => setForm({ ...form, genre: e.target.value })} placeholder="e.g. AI / Technology" style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="pages">Pages</label>
-            <input id="pages" type="number" min="1" value={form.pages} onChange={(e) => setForm({ ...form, pages: e.target.value })} />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="pages" style={labelStyle}>Pages</label>
+            <input id="pages" type="number" min="1" value={form.pages} onChange={(e) => setForm({ ...form, pages: e.target.value })} style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="description">Description *</label>
-            <textarea id="description" rows={4} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ width: "100%", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border)" }} placeholder="Detailed book description..." />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="description" style={labelStyle}>Description *</label>
+            <textarea id="description" rows={4} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, fontFamily: "inherit" }} placeholder="Detailed book description..." />
           </div>
-          <div className="form-group">
-            <label htmlFor="htmlContent">Book HTML Content *</label>
-            <textarea id="htmlContent" rows={8} required value={form.htmlContent} onChange={(e) => setForm({ ...form, htmlContent: e.target.value })} style={{ width: "100%", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border)" }} placeholder="Paste the HTML content for the book reader here..." />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="htmlContent" style={labelStyle}>Book HTML Content *</label>
+            <textarea id="htmlContent" rows={8} required value={form.htmlContent} onChange={(e) => setForm({ ...form, htmlContent: e.target.value })} style={{ ...inputStyle, fontFamily: "inherit" }} placeholder="Paste the HTML content for the book reader here..." />
           </div>
-          <div className="form-group">
-            <label htmlFor="coverFile">Upload Cover Image</label>
-            <input id="coverFile" type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="coverFile" style={labelStyle}>Upload Cover Image</label>
+            <input id="coverFile" type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="readerFile">Upload Reader HTML</label>
-            <input id="readerFile" type="file" accept=".html,text/html" onChange={(e) => setReaderFile(e.target.files?.[0] || null)} />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="readerFile" style={labelStyle}>Upload Reader HTML</label>
+            <input id="readerFile" type="file" accept=".html,text/html" onChange={(e) => setReaderFile(e.target.files?.[0] || null)} style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="pdfFile">Upload PDF</label>
-            <input id="pdfFile" type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="pdfFile" style={labelStyle}>Upload PDF</label>
+            <input id="pdfFile" type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} style={inputStyle} />
           </div>
-          {error ? <p style={{ color: "crimson", marginBottom: "1rem" }}>{error}</p> : null}
-          <button className="btn btn-primary btn-full" disabled={submitting}>{submitting ? "Publishing Book..." : "🚀 Publish Book"}</button>
+          {error ? <p style={{ color: "#dc2626", marginBottom: "1.25rem", fontWeight: 600 }}>{error}</p> : null}
+          <button className="btn btn-primary btn-full" disabled={submitting} style={{ padding: "0.9rem", fontSize: "1.05rem", fontWeight: 700 }}>{submitting ? "Publishing Book..." : "🚀 Publish Book"}</button>
         </form>
 
         {/* ─── Coupon Management Section ─── */}
-        <hr style={{ margin: "2.5rem 0", borderColor: "var(--border)" }} />
+        <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />
         <form onSubmit={createCoupon}>
-          <h2 className="section-title" style={{ fontSize: "1.4rem", marginBottom: "1rem" }}>Create Coupon</h2>
-          <div className="form-group">
-            <label htmlFor="couponCode">Coupon Code</label>
-            <input id="couponCode" required value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="e.g. SPECIAL50" />
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>Create Coupon</h2>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="couponCode" style={labelStyle}>Coupon Code</label>
+            <input id="couponCode" required value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="e.g. SPECIAL50" style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label htmlFor="couponPercent">Discount Percent</label>
-            <input id="couponPercent" type="number" min="1" max="100" required value={couponPercent} onChange={(e) => setCouponPercent(e.target.value)} />
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="couponPercent" style={labelStyle}>Discount Percent</label>
+            <input id="couponPercent" type="number" min="1" max="100" required value={couponPercent} onChange={(e) => setCouponPercent(e.target.value)} style={inputStyle} />
           </div>
-          <div className="form-row-checkbox">
-            <input id="couponActive" type="checkbox" checked={couponActive} onChange={(e) => setCouponActive(e.target.checked)} />
-            <label htmlFor="couponActive">Active</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            <input id="couponActive" type="checkbox" checked={couponActive} onChange={(e) => setCouponActive(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer" }} />
+            <label htmlFor="couponActive" style={{ fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Active</label>
           </div>
-          {couponMessage ? <p style={{ color: couponMessage.includes("success") ? "green" : "crimson", marginBottom: "1rem" }}>{couponMessage}</p> : null}
-          <button className="btn btn-outline btn-full" type="submit">Save Coupon</button>
+          {couponMessage ? <p style={{ color: couponMessage.includes("success") ? "#15803d" : "#dc2626", marginBottom: "1.25rem", fontWeight: 500 }}>{couponMessage}</p> : null}
+          <button className="btn btn-outline btn-full" type="submit" style={{ padding: "0.85rem", color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff", fontWeight: 600 }}>Save Coupon</button>
         </form>
 
         <div style={{ marginTop: "2rem" }}>
-          <h3 className="section-title" style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>Coupon Codes</h3>
-          <p className="muted" style={{ marginBottom: "1rem" }}>Active codes provide discount percentages to users at checkout.</p>
-          {couponsLoading ? <p className="muted">Loading coupons...</p> : null}
-          {!couponsLoading && coupons.length === 0 ? <p className="muted">No coupon codes yet.</p> : null}
+          <h3 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>Coupon Codes</h3>
+          <p style={{ color: "#475569", marginBottom: "1rem", fontSize: "0.9rem" }}>Active codes provide discount percentages to users at checkout.</p>
+          {couponsLoading ? <p style={{ color: "#475569" }}>Loading coupons...</p> : null}
+          {!couponsLoading && coupons.length === 0 ? <p style={{ color: "#475569" }}>No coupon codes yet.</p> : null}
           {coupons.map((coupon) => {
             const isWorking = coupon.active && coupon.discountPercent >= 1 && coupon.discountPercent <= 100;
             return (
-              <div key={coupon._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", padding: "0.85rem 0", borderBottom: "1px solid var(--border)" }}>
+              <div key={coupon._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", padding: "1rem 0", borderBottom: "1px solid #e2e8f0" }}>
                 <div>
-                  <strong>{coupon.code}</strong> <span className="muted">— {coupon.discountPercent}% off</span>
-                  <p style={{ color: isWorking ? "green" : "crimson", margin: "0.25rem 0 0" }}>{isWorking ? "Active" : "Inactive"}</p>
+                  <strong style={{ fontSize: "1.05rem", color: "#0f172a" }}>{coupon.code}</strong> <span style={{ color: "#475569" }}>— {coupon.discountPercent}% off</span>
+                  <p style={{ color: isWorking ? "#15803d" : "#dc2626", margin: "0.25rem 0 0", fontSize: "0.85rem", fontWeight: 600 }}>{isWorking ? "Active" : "Inactive"}</p>
                 </div>
-                <button className="btn btn-outline" type="button" onClick={() => deleteCoupon(coupon.code)} disabled={deletingCoupon === coupon.code}>
+                <button className="btn btn-outline" type="button" onClick={() => deleteCoupon(coupon.code)} disabled={deletingCoupon === coupon.code} style={{ color: "#dc2626", borderColor: "#fca5a5", backgroundColor: "#fff5f5" }}>
                   {deletingCoupon === coupon.code ? "Deleting..." : "Delete"}
                 </button>
               </div>

@@ -5,6 +5,7 @@ import { isAdminPasswordValid } from "@/lib/admin";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ books });
   } catch (error) {
     console.error("Admin list books error:", error);
-    return NextResponse.json({ error: "Unable to list books" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to list books" }, { status: 500 });
   }
 }
 
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ book, message: "Book added successfully" });
   } catch (error) {
     console.error("Admin create book error:", error);
-    return NextResponse.json({ error: "Unable to save book" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save book" }, { status: 500 });
   }
 }
 
@@ -204,6 +205,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    await connectDB();
     const contentType = req.headers.get("content-type") || "";
     let body: Record<string, any> = {};
     let formData: FormData | null = null;
@@ -265,8 +267,15 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Selling price / actual price must be greater than ₹0" }, { status: 400 });
     }
 
-    await connectDB();
-    const duplicate = await BookModel.findOne({ slug: safeSlug, _id: { $ne: id } }).lean();
+    const findQuery = Types.ObjectId.isValid(String(id))
+      ? { _id: id }
+      : { id: Number(id) };
+
+    const duplicateQuery = Types.ObjectId.isValid(String(id))
+      ? { slug: safeSlug, _id: { $ne: id } }
+      : { slug: safeSlug, id: { $ne: Number(id) } };
+
+    const duplicate = await BookModel.findOne(duplicateQuery).lean();
     if (duplicate) {
       return NextResponse.json({ error: "Another book already uses this slug" }, { status: 400 });
     }
@@ -322,14 +331,14 @@ export async function PUT(req: NextRequest) {
       if (pdf) updates.pdf = pdf as string;
     }
 
-    const book = await BookModel.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+    const book = await BookModel.findOneAndUpdate(findQuery, updates, { new: true, runValidators: true });
     if (!book) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
-    return NextResponse.json({ book, message: "Book updated" });
+    return NextResponse.json({ book, message: "Book updated successfully" });
   } catch (error) {
     console.error("Admin update book error:", error);
-    return NextResponse.json({ error: "Unable to update book" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to update book" }, { status: 500 });
   }
 }
 
@@ -346,13 +355,17 @@ export async function DELETE(req: NextRequest) {
     }
 
     await connectDB();
-    const book = await BookModel.findByIdAndDelete(id);
+    const findQuery = Types.ObjectId.isValid(String(id))
+      ? { _id: id }
+      : { id: Number(id) };
+
+    const book = await BookModel.findOneAndDelete(findQuery);
     if (!book) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
     return NextResponse.json({ message: "Book deleted successfully" });
   } catch (error) {
     console.error("Admin delete book error:", error);
-    return NextResponse.json({ error: "Unable to delete book" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to delete book" }, { status: 500 });
   }
 }
