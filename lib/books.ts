@@ -139,6 +139,18 @@ async function resolveHtmlContent(htmlContent: string | undefined) {
   }
 }
 
+function resolveBookPrice(doc: { sellingPrice?: number; price?: number; actualPrice?: number }): number {
+  if (typeof doc.sellingPrice === "number" && doc.sellingPrice > 0) return doc.sellingPrice;
+  if (typeof doc.price === "number" && doc.price > 0) return doc.price;
+  if (typeof doc.actualPrice === "number" && doc.actualPrice > 0) return doc.actualPrice;
+  return 0;
+}
+
+function resolveBookCover(cover?: string): string {
+  if (cover && cover.trim() && cover !== "/images/default-book.png") return cover;
+  return "/images/default-book.svg";
+}
+
 export async function getAllBooks(): Promise<Book[]> {
   try {
     await connectDB();
@@ -151,17 +163,17 @@ export async function getAllBooks(): Promise<Book[]> {
         slug: doc.slug,
         title: doc.title,
         author: doc.author,
-        price: doc.sellingPrice ?? doc.price,
-        actualPrice: doc.actualPrice,
-        color: doc.color,
-        accent: doc.accent,
-        genre: doc.genre,
-        pages: doc.pages,
-        cover: doc.cover,
-        reader: doc.reader,
-        pdf: doc.pdf,
-        description: doc.description,
-        highlights: doc.highlights,
+        price: resolveBookPrice(doc),
+        actualPrice: doc.actualPrice || resolveBookPrice(doc),
+        color: doc.color || "#2c3e50",
+        accent: doc.accent || "#1a252f",
+        genre: doc.genre || "General",
+        pages: doc.pages || 0,
+        cover: resolveBookCover(doc.cover),
+        reader: doc.reader || "/readers/default-reader.html",
+        pdf: doc.pdf || "/books/default-book.pdf",
+        description: doc.description || "",
+        highlights: doc.highlights || [],
         htmlContent: await resolveHtmlContent(doc.htmlContent),
       }))
     );
@@ -181,17 +193,17 @@ export async function getBookBySlugFromDB(slug: string): Promise<Book | null> {
       slug: doc.slug,
       title: doc.title,
       author: doc.author,
-      price: doc.sellingPrice ?? doc.price,
-      actualPrice: doc.actualPrice,
-      color: doc.color,
-      accent: doc.accent,
-      genre: doc.genre,
-      pages: doc.pages,
-      cover: doc.cover,
-      reader: doc.reader,
-      pdf: doc.pdf,
-      description: doc.description,
-      highlights: doc.highlights,
+      price: resolveBookPrice(doc),
+      actualPrice: doc.actualPrice || resolveBookPrice(doc),
+      color: doc.color || "#2c3e50",
+      accent: doc.accent || "#1a252f",
+      genre: doc.genre || "General",
+      pages: doc.pages || 0,
+      cover: resolveBookCover(doc.cover),
+      reader: doc.reader || "/readers/default-reader.html",
+      pdf: doc.pdf || "/books/default-book.pdf",
+      description: doc.description || "",
+      highlights: doc.highlights || [],
       htmlContent: await resolveHtmlContent(doc.htmlContent),
     };
   } catch (error) {

@@ -83,6 +83,10 @@ export default function CartPage() {
       alert("Your cart is empty.");
       return;
     }
+    if (total < 1) {
+      alert("Cart total must be at least ₹1 for checkout.");
+      return;
+    }
     try {
       if (typeof window === "undefined") throw new Error("Window unavailable");
       if (typeof window.Razorpay === "undefined") {
@@ -108,9 +112,9 @@ export default function CartPage() {
         apiRazorpayOrder({ amountINR: total, items }),
       ]);
 
-      if (!key) throw new Error("Razorpay key missing (server)");
+      if (!key) throw new Error("Razorpay API key missing on server configuration.");
       const order = orderResp?.order;
-      if (!order) throw new Error("Could not create order (server)");
+      if (!order) throw new Error(orderResp?.error || "Could not create order on server.");
 
       const options = {
         key,
@@ -156,17 +160,17 @@ export default function CartPage() {
       rzp.on(
         "payment.failed",
         (resp: { error?: { description?: string } }) => {
-          console.error(resp);
-          alert(resp?.error?.description || "Payment failed.");
+          console.error("Razorpay Payment Failed Event:", resp);
+          alert(resp?.error?.description || "Payment failed. Please check your card or UPI details.");
           setBusy(false);
         }
       );
       rzp.open();
     } catch (err) {
-      console.error(err);
+      console.error("Checkout Error:", err);
       alert(
         (err as Error).message ||
-          "Could not start payment. Is the server running?"
+          "Could not start payment. Please check server logs."
       );
       setBusy(false);
     }
@@ -187,7 +191,8 @@ export default function CartPage() {
               cartBooks.map((b) => (
                 <div className="cart-item" key={b.id}>
                   <Image
-                    src={b.cover}
+                    src={b.cover || "/images/default-book.svg"}
+                    unoptimized
                     alt={b.title}
                     width={70}
                     height={98}

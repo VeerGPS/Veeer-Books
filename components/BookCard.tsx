@@ -15,12 +15,13 @@ export default function BookCard({ book }: { book: Book }) {
         style={{ background: book.color }}
       >
         <Image
-          src={book.cover}
+          src={book.cover || "/images/default-book.svg"}
           alt={book.title}
           width={300}
           height={450}
           className="book-cover-img"
           sizes="(max-width: 768px) 50vw, 280px"
+          unoptimized
         />
       </Link>
 

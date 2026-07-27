@@ -59,11 +59,12 @@ export default function LibraryPage() {
                 style={{ background: b.color }}
               >
                 <Image
-                  src={b.cover}
+                  src={b.cover || "/images/default-book.svg"}
                   alt={b.title}
                   width={300}
                   height={450}
                   className="book-cover-img"
+                  unoptimized
                 />
               </div>
               <div className="book-info">

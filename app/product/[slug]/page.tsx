@@ -34,12 +34,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <section className="container product-wrap">
         <aside className="product-cover">
           <Image
-            src={book.cover}
+            src={book.cover || "/images/default-book.svg"}
             alt={`${book.title} cover`}
             width={400}
             height={600}
             priority
             sizes="(max-width: 860px) 90vw, 380px"
+            unoptimized
           />
         </aside>
 
