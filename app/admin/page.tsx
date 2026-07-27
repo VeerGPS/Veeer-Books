@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 
 const ADMIN_PASSWORD = "VSB95@veeerbooks.in";
 
+type AdminCoupon = {
+  _id: string;
+  code: string;
+  discountPercent: number;
+  active: boolean;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -15,6 +22,9 @@ export default function AdminPage() {
   const [couponPercent, setCouponPercent] = useState("10");
   const [couponActive, setCouponActive] = useState(true);
   const [couponMessage, setCouponMessage] = useState("");
+  const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [deletingCoupon, setDeletingCoupon] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [readerFile, setReaderFile] = useState<File | null>(null);
@@ -38,6 +48,7 @@ export default function AdminPage() {
     if (password === ADMIN_PASSWORD) {
       setAuthorized(true);
       setError("");
+      void loadCoupons();
     } else {
       setError("Incorrect admin password.");
     }
@@ -47,13 +58,33 @@ export default function AdminPage() {
     setCouponCode((prev) => prev || "WELCOME10");
   }, []);
 
+  const loadCoupons = async () => {
+    setCouponsLoading(true);
+    try {
+      const res = await fetch("/api/admin/coupons", {
+        headers: { "x-admin-password": ADMIN_PASSWORD },
+      });
+      const data: { error?: string; coupons?: AdminCoupon[] } = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load coupons");
+      setCoupons(data.coupons || []);
+    } catch (err) {
+      setCouponMessage(err instanceof Error ? err.message : "Failed to load coupons");
+    } finally {
+      setCouponsLoading(false);
+    }
+  };
+
   const submitBook = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
     try {
-      if (coverFile?.size > MAX_UPLOAD_SIZE || pdfFile?.size > MAX_UPLOAD_SIZE || readerFile?.size > MAX_UPLOAD_SIZE) {
+      if (
+        (coverFile?.size ?? 0) > MAX_UPLOAD_SIZE ||
+        (pdfFile?.size ?? 0) > MAX_UPLOAD_SIZE ||
+        (readerFile?.size ?? 0) > MAX_UPLOAD_SIZE
+      ) {
         throw new Error("One of the uploaded files is too large. Please use files smaller than 40MB.");
       }
 
@@ -154,8 +185,30 @@ export default function AdminPage() {
       setCouponCode("");
       setCouponPercent("10");
       setCouponActive(true);
+      await loadCoupons();
     } catch (err) {
       setCouponMessage(err instanceof Error ? err.message : "Failed to save coupon");
+    }
+  };
+
+  const deleteCoupon = async (code: string) => {
+    if (!window.confirm(`Delete coupon ${code}? This cannot be undone.`)) return;
+
+    setDeletingCoupon(code);
+    setCouponMessage("");
+    try {
+      const res = await fetch(`/api/admin/coupons?code=${encodeURIComponent(code)}`, {
+        method: "DELETE",
+        headers: { "x-admin-password": ADMIN_PASSWORD },
+      });
+      const data: { error?: string } = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete coupon");
+      setCoupons((current) => current.filter((coupon) => coupon.code !== code));
+      setCouponMessage(`Coupon ${code} deleted successfully.`);
+    } catch (err) {
+      setCouponMessage(err instanceof Error ? err.message : "Failed to delete coupon");
+    } finally {
+      setDeletingCoupon("");
     }
   };
 
@@ -253,7 +306,7 @@ export default function AdminPage() {
           </div>
           <div className="form-group">
             <label htmlFor="couponPercent">Discount Percent</label>
-            <input id="couponPercent" type="number" min="0" max="100" required value={couponPercent} onChange={(e) => setCouponPercent(e.target.value)} />
+            <input id="couponPercent" type="number" min="1" max="100" required value={couponPercent} onChange={(e) => setCouponPercent(e.target.value)} />
           </div>
           <div className="form-row-checkbox">
             <input id="couponActive" type="checkbox" checked={couponActive} onChange={(e) => setCouponActive(e.target.checked)} />
@@ -262,6 +315,27 @@ export default function AdminPage() {
           {couponMessage ? <p style={{ color: couponMessage.includes("success") ? "green" : "crimson", marginBottom: "1rem" }}>{couponMessage}</p> : null}
           <button className="btn btn-outline btn-full" type="submit">Save Coupon</button>
         </form>
+
+        <div style={{ marginTop: "2rem" }}>
+          <h3 className="section-title" style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>Coupon Codes</h3>
+          <p className="muted" style={{ marginBottom: "1rem" }}>Working codes are active and give a discount between 1% and 100%.</p>
+          {couponsLoading ? <p className="muted">Loading coupons...</p> : null}
+          {!couponsLoading && coupons.length === 0 ? <p className="muted">No coupon codes yet.</p> : null}
+          {coupons.map((coupon) => {
+            const isWorking = coupon.active && coupon.discountPercent >= 1 && coupon.discountPercent <= 100;
+            return (
+              <div key={coupon._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", padding: "0.85rem 0", borderBottom: "1px solid var(--border)" }}>
+                <div>
+                  <strong>{coupon.code}</strong> <span className="muted">— {coupon.discountPercent}% off</span>
+                  <p style={{ color: isWorking ? "green" : "crimson", margin: "0.25rem 0 0" }}>{isWorking ? "Working" : "Not working"}</p>
+                </div>
+                <button className="btn btn-outline" type="button" onClick={() => deleteCoupon(coupon.code)} disabled={deletingCoupon === coupon.code}>
+                  {deletingCoupon === coupon.code ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </main>
   );

@@ -7,13 +7,6 @@ import path from "path";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb",
-    },
-  },
-};
 
 const MAX_HTML_CONTENT_BYTES = 1024 * 1024;
 

@@ -31,13 +31,14 @@ export async function POST(req: NextRequest) {
     const { code, discountPercent, active } = await req.json();
     const normalizedCode = normalizeCouponCode(code);
 
-    if (!normalizedCode || !Number.isFinite(Number(discountPercent))) {
+    const percent = Number(discountPercent);
+    if (!normalizedCode || !Number.isFinite(percent) || percent < 1 || percent > 100) {
       return NextResponse.json({ error: "Invalid coupon data" }, { status: 400 });
     }
 
     const coupon = await CouponModel.create({
       code: normalizedCode,
-      discountPercent: Number(discountPercent),
+      discountPercent: percent,
       active: Boolean(active),
     });
 
@@ -45,5 +46,30 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Admin coupon create error:", error);
     return NextResponse.json({ error: "Unable to save coupon" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = req.headers.get("x-admin-password");
+    if (!isAdminPasswordValid(auth)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const code = normalizeCouponCode(new URL(req.url).searchParams.get("code") || "");
+    if (!code) {
+      return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
+    }
+
+    await connectDB();
+    const coupon = await CouponModel.findOneAndDelete({ code });
+    if (!coupon) {
+      return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "Coupon deleted", code });
+  } catch (error) {
+    console.error("Admin coupon delete error:", error);
+    return NextResponse.json({ error: "Unable to delete coupon" }, { status: 500 });
   }
 }

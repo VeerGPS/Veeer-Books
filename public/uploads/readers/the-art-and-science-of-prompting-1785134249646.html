@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>The Art & Science of Prompting</title>
+<style>
+/* ═══════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --bg:        #181818;
+  --surface:   #222222;
+  --surface2:  #2c2c2c;
+  --border:    #363636;
+  --accent:    #c9a96e;
+  --accent2:   #e8c891;
+  --text:      #e8e4dc;
+  --muted:     #888480;
+  --dim:       #5a5650;
+  --radius:    10px;
+  --shadow:    0 8px 32px rgba(0,0,0,0.6);
+  --topbar-h:  52px;
+  --botbar-h:  52px;
+  --sidebar-w: 300px;
+  --font-ui:   'Georgia', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Safe-area for notched phones */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+}
+body.day {
+  --bg:#f4f1eb; --surface:#ebe7de; --surface2:#e0dbd0;
+  --border:#cec8bb; --text:#2c2825; --muted:#6b6560; --dim:#9a9590;
+}
+body.day #viewer { background:#d8d5cc; }
+body.day .page-wrap { box-shadow:0 2px 16px rgba(0,0,0,0.18); }
+body.sepia .page-wrap img { filter: sepia(0.42) brightness(0.96); }
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body {
+  width:100%; height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  touch-action:pan-y;
+}
+button { cursor:pointer; font-family:inherit; }
+input { font-family:inherit; }
+img { display:block; user-select:none; -webkit-user-drag:none; }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ═══════════════════════════════════════════
+   LAYOUT SHELL
+═══════════════════════════════════════════ */
+#shell {
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  padding-top:var(--safe-top);
+  padding-bottom:var(--safe-bottom);
+  padding-left:var(--safe-left);
+  padding-right:var(--safe-right);
+}
+#topbar {
+  flex-shrink:0;
+  height:var(--topbar-h);
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+  gap:6px;
+  z-index:200;
+}
+#body-row {
+  flex:1;
+  display:flex;
+  overflow:hidden;
+  position:relative;
+}
+#viewer {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#111;
+}
+#pages-container {
+  flex:1;
+  overflow-x:hidden;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:20px 16px;
+  gap:0;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scroll-behavior:smooth;
+}
+#botbar {
+  flex-shrink:0;
+  height:var(--botbar-h);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  gap:10px;
+}
+
+/* ═══════════════════════════════════════════
+   TOP BAR ITEMS
+═══════════════════════════════════════════ */
+.tb-btn {
+  background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+  border:1px solid rgba(255,255,255,0.08);
+  color:var(--text);
+  border-radius:10px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.18s ease;
+  flex-shrink:0;
+  width:38px; height:38px;
+  font-size:15px;
+  line-height:1;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 8px rgba(0,0,0,0.18);
+}
+.tb-btn:hover {
+  background:linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  color:var(--accent2);
+  border-color:var(--accent);
+  transform:translateY(-1px);
+}
+.tb-btn.active {
+  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  color:#111;
+  border-color:var(--accent);
+  box-shadow:0 4px 12px rgba(201,169,110,0.24);
+}
+.tb-btn:active { transform:scale(0.94); }
+
+.book-title {
+  font-family:var(--font-ui);
+  font-size:13px;
+  color:var(--accent);
+  letter-spacing:0.03em;
+  flex:1;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Zoom cluster */
+#zoom-cluster {
+  display:flex; align-items:center; gap:4px;
+  flex-shrink:0;
+  padding:2px;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;
+  background:rgba(255,255,255,0.03);
+}
+.zm-btn {
+  background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+  border:1px solid rgba(255,255,255,0.08);
+  color:var(--text);
+  width:30px; height:30px;
+  border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px;
+  transition:all 0.15s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.zm-btn:hover { background:var(--surface2); color:var(--accent2); }
+.zm-btn:active { transform:scale(0.9); }
+#zoom-label {
+  min-width:38px;
+  text-align:center;
+  font-size:11px;
+  color:var(--muted);
+  font-weight:600;
+}
+
+/* Page jump */
+#page-jump {
+  display:flex; align-items:center; gap:4px;
+  font-size:12px; color:var(--muted);
+  flex-shrink:0;
+  padding:2px 6px;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;
+  background:rgba(255,255,255,0.03);
+}
+#page-input {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:6px;
+  padding:4px 6px;
+  width:46px;
+  text-align:center;
+  font-size:12px;
+}
+#page-input:focus { outline:none; border-color:var(--accent); }
+
+/* Search bar (replaces title row on open) */
+#search-bar {
+  display:none;
+  align-items:center;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:7px;
+  padding:0 10px;
+  gap:6px;
+  height:38px;
+  flex:1;
+  min-width:0;
+}
+#search-bar.open { display:flex; }
+#search-bar input {
+  background:none; border:none; color:var(--text);
+  font-size:13px; outline:none; flex:1; min-width:0;
+}
+#search-bar input::placeholder { color:var(--dim); }
+#srch-count { font-size:11px; color:var(--dim); white-space:nowrap; }
+.srch-nav { background:none; border:none; color:var(--muted); font-size:13px; padding:2px 4px; }
+.srch-nav:hover { color:var(--accent); }
+
+/* ═══════════════════════════════════════════
+   SIDEBAR — desktop push, mobile overlay
+═══════════════════════════════════════════ */
+#sidebar {
+  width:var(--sidebar-w);
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  flex-shrink:0;
+  overflow:hidden;
+  transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  z-index:300;
+}
+/* Desktop: push layout; hidden = slide left off canvas */
+#sidebar.hidden {
+  transform:translateX(calc(-1 * var(--sidebar-w)));
+  width:0;
+  border-right:none;
+}
+/* Sidebar tabs */
+#sb-tabs {
+  display:flex;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-tab {
+  flex:1; padding:10px 0;
+  text-align:center;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.09em;
+  text-transform:uppercase;
+  color:var(--dim);
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all 0.15s;
+  user-select:none;
+}
+.sb-tab:hover { color:var(--muted); }
+.sb-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.sb-panel { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.sb-panel.active { display:flex; }
+
+/* TOC */
+#toc-scroll { flex:1; overflow-y:auto; padding:10px 0; }
+.toc-entry {
+  padding:8px 16px;
+  font-size:13px;
+  cursor:pointer;
+  color:var(--muted);
+  border-left:2px solid transparent;
+  line-height:1.45;
+  transition:all 0.12s;
+  user-select:none;
+}
+.toc-entry:hover { background:var(--surface2); color:var(--text); border-left-color:var(--accent); }
+.toc-entry.active { color:var(--accent2); border-left-color:var(--accent); background:rgba(201,169,110,0.09); }
+.toc-part {
+  padding:13px 16px 5px;
+  font-size:10px; font-weight:800;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--dim);
+  cursor:default;
+  border-left:2px solid transparent;
+}
+.toc-part:hover { background:none; border-left-color:transparent; }
+
+/* Thumbnails */
+#thumbs-scroll { flex:1; overflow-y:auto; padding:10px; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; }
+.thumb {
+  width:calc(50% - 4px);
+  position:relative;
+  cursor:pointer;
+  border-radius:5px;
+  overflow:hidden;
+  border:2px solid transparent;
+  transition:all 0.15s;
+  background:var(--surface2);
+}
+.thumb:hover { border-color:var(--accent); transform:scale(1.03); }
+.thumb.active { border-color:var(--accent); box-shadow:0 0 0 2px rgba(201,169,110,0.35); }
+.thumb img { width:100%; display:block; }
+.thumb-lbl {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,0.65);
+  text-align:center; font-size:10px;
+  color:var(--muted); padding:2px 0;
+}
+
+/* Bookmarks panel */
+#bm-scroll { flex:1; overflow-y:auto; padding:10px; }
+.bm-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background:var(--surface2);
+  border-radius:7px;
+  margin-bottom:8px;
+  cursor:pointer;
+  border:1px solid var(--border);
+  transition:all 0.12s;
+}
+.bm-item:hover { border-color:var(--accent); }
+.bm-icon { color:var(--accent); font-size:16px; flex-shrink:0; }
+.bm-info { flex:1; min-width:0; }
+.bm-pg { font-size:12px; color:var(--accent); font-weight:700; }
+.bm-ch { font-size:11px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bm-del { background:none; border:none; color:var(--dim); font-size:15px; padding:4px; border-radius:4px; }
+.bm-del:hover { color:#e05050; background:rgba(224,80,80,0.1); }
+#bm-empty { padding:36px 16px; text-align:center; color:var(--dim); font-size:13px; line-height:1.6; }
+
+/* ═══════════════════════════════════════════
+   PAGE VIEWER
+═══════════════════════════════════════════ */
+.page-wrap {
+  position:relative;
+  flex-shrink:0;
+  box-shadow:var(--shadow);
+  border-radius:2px;
+  overflow:hidden;
+  background:#fff;
+  display:none;
+  touch-action:none; /* we handle touch manually */
+}
+.page-wrap.visible { display:block; }
+.page-wrap img {
+  display:block;
+  width:100%;
+  height:auto;
+  image-rendering:high-quality;
+  pointer-events:none;
+}
+/* Bookmark star on page */
+.pg-star {
+  position:absolute; top:8px; right:8px;
+  background:var(--accent);
+  color:#111;
+  width:32px; height:32px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px;
+  cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,0.5);
+  z-index:5;
+  opacity:0;
+  transition:opacity 0.15s;
+  border:none;
+}
+.page-wrap:hover .pg-star { opacity:1; }
+.page-wrap.bookmarked .pg-star { opacity:1; background:var(--accent2); }
+/* On touch devices, always show star */
+@media (hover:none) {
+  .pg-star { opacity:0.85 !important; width:36px; height:36px; font-size:17px; }
+}
+/* Double-page */
+#pages-container.double {
+  flex-direction:row;
+  flex-wrap:nowrap;
+  align-items:flex-start;
+  justify-content:center;
+  gap:8px;
+}
+
+/* ═══════════════════════════════════════════
+   BOTTOM BAR
+═══════════════════════════════════════════ */
+.nav-arrow {
+  background:none;
+  border:1px solid var(--border);
+  color:var(--muted);
+  width:36px; height:36px;
+  border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px;
+  transition:all 0.15s;
+  flex-shrink:0;
+}
+.nav-arrow:hover { background:var(--surface2); color:var(--text); border-color:var(--accent); }
+.nav-arrow:active { transform:scale(0.9); }
+.nav-arrow:disabled { opacity:0.25; pointer-events:none; }
+#progress-wrap { flex:1; display:flex; align-items:center; gap:8px; min-width:0; }
+#progress-track {
+  flex:1;
+  height:4px;
+  background:var(--border);
+  border-radius:2px;
+  cursor:pointer;
+  position:relative;
+  min-width:0;
+}
+#progress-fill {
+  height:100%;
+  background:var(--accent);
+  border-radius:2px;
+  width:0%;
+  transition:width 0.15s;
+  pointer-events:none;
+}
+#progress-txt {
+  font-size:11px;
+  color:var(--dim);
+  white-space:nowrap;
+  flex-shrink:0;
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE BOTTOM DRAWER (≤ 640px)
+   Replaces sidebar with a slide-up sheet
+═══════════════════════════════════════════ */
+#mobile-drawer {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  z-index:500;
+  flex-direction:column;
+  max-height:75vh;
+  background:var(--surface);
+  border-radius:16px 16px 0 0;
+  border-top:1px solid var(--border);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+  transform:translateY(100%);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  padding-bottom:var(--safe-bottom);
+}
+#mobile-drawer.open { transform:translateY(0); }
+#drawer-handle {
+  width:40px; height:4px;
+  background:var(--border);
+  border-radius:2px;
+  margin:12px auto 8px;
+  flex-shrink:0;
+}
+#drawer-tabs {
+  display:flex;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.dtab {
+  flex:1; padding:10px 0;
+  text-align:center;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.09em; text-transform:uppercase;
+  color:var(--dim); cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all 0.15s;
+}
+.dtab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.dpanel { display:none; flex:1; overflow-y:auto; }
+.dpanel.active { display:block; }
+#drawer-overlay {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  z-index:499;
+}
+#drawer-overlay.open { display:block; }
+
+/* Mobile bottom nav bar */
+#mobile-botbar {
+  display:none;
+  position:fixed;
+  bottom:0; left:0; right:0;
+  height:calc(56px + var(--safe-bottom));
+  padding-bottom:var(--safe-bottom);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  z-index:400;
+  align-items:center;
+  justify-content:space-around;
+  padding-left:var(--safe-left);
+  padding-right:var(--safe-right);
+  gap:0;
+}
+.mob-nav-btn {
+  flex:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px;
+  height:100%;
+  background:none; border:none;
+  color:var(--muted);
+  font-size:10px; letter-spacing:0.04em;
+  transition:color 0.15s;
+  padding:0;
+}
+.mob-nav-btn .icon { font-size:20px; line-height:1; }
+.mob-nav-btn:active { color:var(--accent); transform:scale(0.9); }
+.mob-nav-btn.active { color:var(--accent); }
+#mob-page-info {
+  flex:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px;
+}
+#mob-page-num { font-size:16px; font-weight:700; color:var(--text); line-height:1; }
+#mob-page-total { font-size:10px; color:var(--dim); }
+
+/* ═══════════════════════════════════════════
+   LIGHTBOX
+═══════════════════════════════════════════ */
+#lightbox {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.96);
+  z-index:9000;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:16px;
+}
+#lightbox.open { display:flex; }
+#lb-img {
+  max-width:92vw;
+  max-height:82vh;
+  object-fit:contain;
+  border-radius:2px;
+  box-shadow:0 8px 48px rgba(0,0,0,0.8);
+  touch-action:pinch-zoom;
+}
+#lb-bar {
+  display:flex; align-items:center; gap:14px;
+}
+.lb-btn {
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  color:#fff;
+  padding:8px 20px;
+  border-radius:7px;
+  font-size:14px;
+  transition:all 0.15s;
+}
+.lb-btn:hover { background:rgba(255,255,255,0.22); }
+#lb-info { font-size:13px; color:rgba(255,255,255,0.45); }
+#lb-close {
+  position:fixed; top:16px; right:18px;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:50%;
+  color:#fff;
+  width:38px; height:38px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px;
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+#toast {
+  position:fixed; bottom:70px; left:50%;
+  transform:translateX(-50%) translateY(12px);
+  background:var(--surface);
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:10px 20px;
+  border-radius:10px;
+  font-size:13px;
+  opacity:0;
+  transition:all 0.28s;
+  pointer-events:none;
+  z-index:9500;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
+  white-space:nowrap;
+  max-width:90vw;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ═══════════════════════════════════════════
+   SHORTCUTS OVERLAY
+═══════════════════════════════════════════ */
+#kbdlay {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.82);
+  z-index:8000;
+  align-items:center; justify-content:center;
+  padding:16px;
+}
+#kbdlay.open { display:flex; }
+#kbd-box {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px 28px;
+  max-width:460px;
+  width:100%;
+  max-height:80vh;
+  overflow-y:auto;
+}
+#kbd-box h3 {
+  font-family:var(--font-ui);
+  color:var(--accent);
+  font-size:17px;
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+.sc-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 0;
+  border-bottom:1px solid rgba(54,54,54,0.45);
+}
+.sc-keys { display:flex; gap:4px; }
+.sc-key {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:4px; padding:2px 8px;
+  font-size:11px; font-family:monospace; color:var(--muted);
+}
+.sc-desc { font-size:12px; color:var(--muted); }
+#kbd-close {
+  margin-top:14px; width:100%;
+  background:var(--surface2); border:1px solid var(--border);
+  color:var(--text); padding:9px;
+  border-radius:7px; font-size:13px;
+}
+#kbd-close:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — Tablet (641–1024px)
+═══════════════════════════════════════════ */
+@media (max-width: 1024px) and (min-width: 641px) {
+  :root { --sidebar-w: 260px; }
+  /* Sidebar overlays on tablet */
+  #sidebar {
+    position:absolute;
+    top:0; bottom:0; left:0;
+    z-index:350;
+    box-shadow:4px 0 24px rgba(0,0,0,0.5);
+  }
+  #sidebar.hidden {
+    transform:translateX(calc(-1 * var(--sidebar-w)));
+    width:var(--sidebar-w);
+    border-right:1px solid var(--border);
+  }
+  #sidebar-overlay {
+    display:none;
+    position:absolute; inset:0;
+    z-index:340;
+    background:rgba(0,0,0,0.45);
+  }
+  #sidebar-overlay.open { display:block; }
+  #topbar { padding:0 8px; gap:5px; }
+  .book-title { display:none; }
+  #zoom-cluster { gap:3px; }
+  #zoom-label { min-width:32px; }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — Mobile (≤ 640px)
+═══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Hide desktop sidebar entirely */
+  #sidebar { display:none !important; }
+  /* Hide desktop bottom bar, show mobile one */
+  #botbar { display:none !important; }
+  #mobile-botbar { display:flex !important; }
+  /* Viewer full-width, leave room for mobile botbar */
+  #viewer {
+    padding-bottom:calc(56px + var(--safe-bottom));
+  }
+  /* Mobile: hide desktop-only topbar items */
+  .book-title { display:none; }
+  #zoom-cluster { display:none; }
+  #page-jump { display:none; }
+  #single-btn { display:none; }
+  #double-btn { display:none; }
+  #shortcut-btn { display:none; }
+  /* Topbar buttons bigger for touch */
+  .tb-btn { width:42px; height:42px; font-size:18px; border:none; }
+  #topbar { padding:0 6px; gap:4px; height:50px; }
+  /* Pages full-width */
+  #pages-container { padding:12px 8px; }
+  /* Mobile drawer shown */
+  #mobile-drawer { display:flex; }
+  /* Toast above mobile botbar */
+  #toast { bottom:calc(60px + var(--safe-bottom) + 10px); }
+}
+
+/* ═══════════════════════════════════════════
+   LANDSCAPE PHONE
+═══════════════════════════════════════════ */
+@media (max-width: 896px) and (orientation: landscape) and (max-height: 500px) {
+  :root { --topbar-h: 44px; }
+  #mobile-botbar { height:calc(48px + var(--safe-bottom)); }
+  #pages-container { padding:8px; }
+  #viewer { padding-bottom:calc(48px + var(--safe-bottom)); }
+  .mob-nav-btn .icon { font-size:18px; }
+  .mob-nav-btn { font-size:9px; }
+}
+
+/* ═══════════════════════════════════════════
+   LARGE SCREEN (≥ 1280px) — wider sidebar
+═══════════════════════════════════════════ */
+@media (min-width: 1280px) {
+  :root { --sidebar-w: 320px; }
+}
+
+/* ═══════════════════════════════════════════
+   PINCH-ZOOM WRAPPER for page image
+═══════════════════════════════════════════ */
+#pinch-viewport {
+  flex:1;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+#pinch-content {
+  transform-origin:center center;
+  will-change:transform;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0;
+  width:100%;
+}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- ══ TOP BAR ══ -->
+  <div id="topbar">
+    <button class="tb-btn" id="sidebar-toggle" title="Toggle Sidebar (S)" aria-label="Toggle Sidebar">☰</button>
+    <span class="book-title">The Art &amp; Science of Prompting</span>
+
+    <!-- Search bar (hidden until activated) -->
+    <div id="search-bar" role="search">
+      <span style="color:var(--dim);font-size:14px;flex-shrink:0">🔍</span>
+      <input type="search" id="srch-input" placeholder="Search chapters…" autocomplete="off" aria-label="Search chapters">
+      <span id="srch-count"></span>
+      <button class="srch-nav" id="srch-prev" aria-label="Previous result">▲</button>
+      <button class="srch-nav" id="srch-next" aria-label="Next result">▼</button>
+      <button class="srch-nav" id="srch-close" aria-label="Close search">✕</button>
+    </div>
+
+    <button class="tb-btn" id="search-btn" title="Search (Ctrl+F)" aria-label="Search">🔍</button>
+
+    <!-- Zoom cluster -->
+    <div id="zoom-cluster" role="group" aria-label="Zoom controls">
+      <button class="zm-btn" id="zoom-out" title="Zoom Out (−)" aria-label="Zoom out">−</button>
+      <span id="zoom-label" aria-live="polite">100%</span>
+      <button class="zm-btn" id="zoom-in" title="Zoom In (+)" aria-label="Zoom in">+</button>
+      <button class="zm-btn" id="zoom-fit" title="Fit to Width" aria-label="Fit width" style="font-size:13px">⊡</button>
+    </div>
+
+    <!-- Page jump -->
+    <div id="page-jump" aria-label="Page navigation">
+      <input type="number" id="page-input" min="1" max="123" value="1" aria-label="Current page">
+      <span id="total-lbl" style="color:var(--dim)">/ 123</span>
+    </div>
+
+    <button class="tb-btn" id="single-btn" title="Single Page" aria-label="Single page" style="font-size:13px">▯</button>
+    <button class="tb-btn" id="double-btn" title="Double Page" aria-label="Double page" style="font-size:11px">▯▯</button>
+    <button class="tb-btn" id="fullscreen-btn" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+    <button class="tb-btn" id="theme-btn" title="Light/Dark (T)" aria-label="Toggle theme">☀</button>
+    <button class="tb-btn" id="sepia-btn" title="Sepia Mode" aria-label="Sepia mode">🕮</button>
+    <button class="tb-btn" id="shortcut-btn" title="Keyboard Shortcuts (?)" aria-label="Keyboard shortcuts">⌨</button>
+  </div>
+
+  <!-- ══ BODY ROW ══ -->
+  <div id="body-row">
+
+    <!-- Overlay for sidebar on tablet -->
+    <div id="sidebar-overlay" aria-hidden="true"></div>
+
+    <!-- ══ SIDEBAR ══ -->
+    <nav id="sidebar" aria-label="Book navigation">
+      <div id="sb-tabs" role="tablist">
+        <div class="sb-tab active" role="tab" aria-selected="true" data-panel="toc" tabindex="0">Contents</div>
+        <div class="sb-tab" role="tab" aria-selected="false" data-panel="thumbs" tabindex="0">Pages</div>
+        <div class="sb-tab" role="tab" aria-selected="false" data-panel="bookmarks" tabindex="0">Marks</div>
+      </div>
+      <div class="sb-panel active" id="panel-toc" role="tabpanel">
+        <div id="toc-scroll"><div id="toc-list"></div></div>
+      </div>
+      <div class="sb-panel" id="panel-thumbs" role="tabpanel">
+        <div id="thumbs-scroll"></div>
+      </div>
+      <div class="sb-panel" id="panel-bookmarks" role="tabpanel">
+        <div id="bm-scroll">
+          <div id="bm-list"></div>
+          <div id="bm-empty">No bookmarks yet.<br><br>Tap ★ on any page to bookmark it.</div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ══ VIEWER ══ -->
+    <div id="viewer">
+      <div id="pages-container" role="main" aria-label="Book pages"></div>
+    </div>
+  </div>
+
+  <!-- ══ DESKTOP BOTTOM BAR ══ -->
+  <div id="botbar">
+    <button class="nav-arrow" id="prev-btn" aria-label="Previous page" title="← / A">◄</button>
+    <div id="progress-wrap">
+      <div id="progress-track" role="slider" aria-label="Reading progress" aria-valuemin="1" aria-valuemax="123">
+        <div id="progress-fill"></div>
+      </div>
+      <span id="progress-txt" aria-live="polite">Page 1 of 123</span>
+    </div>
+    <button class="nav-arrow" id="next-btn" aria-label="Next page" title="→ / D">►</button>
+  </div>
+</div>
+
+<!-- ══ MOBILE BOTTOM NAV BAR ══ -->
+<div id="mobile-botbar" role="navigation" aria-label="Mobile navigation">
+  <button class="nav-arrow" id="mob-prev" aria-label="Previous page" style="border:none;background:none;color:var(--muted);font-size:22px;width:44px;height:44px">◄</button>
+  <button class="mob-nav-btn" id="mob-menu-btn" aria-label="Open menu">
+    <span class="icon">☰</span>
+    <span>Menu</span>
+  </button>
+  <div id="mob-page-info" aria-live="polite">
+    <div id="mob-page-num">1</div>
+    <div id="mob-page-total">of 123</div>
+  </div>
+  <button class="mob-nav-btn" id="mob-bm-btn" aria-label="Bookmark page">
+    <span class="icon" id="mob-bm-icon">☆</span>
+    <span>Mark</span>
+  </button>
+  <button class="nav-arrow" id="mob-next" aria-label="Next page" style="border:none;background:none;color:var(--muted);font-size:22px;width:44px;height:44px">►</button>
+</div>
+
+<!-- ══ MOBILE DRAWER ══ -->
+<div id="drawer-overlay" aria-hidden="true"></div>
+<div id="mobile-drawer" role="dialog" aria-modal="true" aria-label="Navigation drawer">
+  <div id="drawer-handle" aria-hidden="true"></div>
+  <div id="drawer-tabs" role="tablist">
+    <div class="dtab active" role="tab" data-dpanel="dtoc">Contents</div>
+    <div class="dtab" role="tab" data-dpanel="dthumbs">Pages</div>
+    <div class="dtab" role="tab" data-dpanel="dbookmarks">Marks</div>
+  </div>
+  <div class="dpanel active" id="dtoc"><div id="dtoc-list" style="padding:8px 0"></div></div>
+  <div class="dpanel" id="dthumbs"><div id="dthumbs-grid" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px"></div></div>
+  <div class="dpanel" id="dbookmarks"><div id="dbm-list" style="padding:10px"></div><div id="dbm-empty" style="padding:28px 16px;text-align:center;color:var(--dim);font-size:13px;line-height:1.6">No bookmarks yet.<br>Tap ★ on any page to bookmark it.</div></div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Page zoom view">
+  <button id="lb-close" aria-label="Close lightbox">✕</button>
+  <img id="lb-img" src="" alt="Book page zoomed">
+  <div id="lb-bar">
+    <button class="lb-btn" id="lb-prev" aria-label="Previous page in lightbox">◄ Prev</button>
+    <span id="lb-info"></span>
+    <button class="lb-btn" id="lb-next" aria-label="Next page in lightbox">Next ►</button>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- ══ KEYBOARD SHORTCUTS ══ -->
+<div id="kbdlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div id="kbd-box">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">←</span><span class="sc-key">A</span></div><span class="sc-desc">Previous page</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">→</span><span class="sc-key">D</span></div><span class="sc-desc">Next page</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">Home</span></div><span class="sc-desc">First page</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">End</span></div><span class="sc-desc">Last page</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">+</span></div><span class="sc-desc">Zoom in</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">−</span></div><span class="sc-desc">Zoom out</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">F</span></div><span class="sc-desc">Fullscreen</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">S</span></div><span class="sc-desc">Toggle sidebar</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">T</span></div><span class="sc-desc">Light / Dark theme</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">B</span></div><span class="sc-desc">Bookmark current page</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">Ctrl+F</span></div><span class="sc-desc">Search chapters</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">Esc</span></div><span class="sc-desc">Close / Exit</span></div>
+    <div class="sc-row"><div class="sc-keys"><span class="sc-key">?</span></div><span class="sc-desc">Show this panel</span></div>
+    <button id="kbd-close">Close</button>
+  </div>
+</div>
+
+
+</body>
+</html>

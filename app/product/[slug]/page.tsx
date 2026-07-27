@@ -54,13 +54,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
           <p className="product-copy">{book.description}</p>
 
-          {book.htmlContent ? (
-            <div
-              className="product-html"
-              dangerouslySetInnerHTML={{ __html: book.htmlContent }}
-            />
-          ) : null}
-
           <div className="product-actions">
             <AddToCartButton bookId={book.id} />
             <Link className="btn btn-outline" href="/">

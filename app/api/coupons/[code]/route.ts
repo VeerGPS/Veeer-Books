@@ -7,7 +7,11 @@ export async function GET(req: NextRequest, { params }: { params: { code: string
   try {
     await connectDB();
     const code = normalizeCouponCode(params.code);
-    const coupon = await CouponModel.findOne({ code, active: true }).lean();
+    const coupon = await CouponModel.findOne({
+      code,
+      active: true,
+      discountPercent: { $gte: 1, $lte: 100 },
+    }).lean();
     if (!coupon) {
       return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
     }
