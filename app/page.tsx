@@ -3,6 +3,9 @@ import Link from "next/link";
 import BookGrid from "@/components/BookGrid";
 import { getAllBooks } from "@/lib/books";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // Server component — renders the current catalog from MongoDB when available.
 export default async function HomePage() {
   const books = await getAllBooks();

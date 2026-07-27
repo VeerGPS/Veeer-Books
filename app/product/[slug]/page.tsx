@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
 import AddToCartButton from "./AddToCartButton";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export function generateStaticParams() {
   return BOOKS.map((b) => ({ slug: b.slug }));
 }
