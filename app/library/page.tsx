@@ -71,9 +71,9 @@ export default function LibraryPage() {
                 <h3>{b.title}</h3>
                 <p className="book-author">{b.author}</p>
                 <a
-                  href={b.reader}
+                  href={b.reader || `/reader/${b.slug}`}
                   className="btn btn-primary btn-sm"
-                  style={{ marginTop: "0.75rem", width: "100%" }}
+                  style={{ marginTop: "0.75rem", width: "100%", textAlign: "center" }}
                 >
                   Read Now
                 </a>

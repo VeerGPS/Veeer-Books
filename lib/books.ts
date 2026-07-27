@@ -116,6 +116,28 @@ export const BOOKS: Book[] = [
     description:
       "A complete student-focused system for mastering time, reducing burnout, and improving academic performance.",
   },
+  {
+    id: 6,
+    slug: "the-art-and-science-of-prompting",
+    title: "The Art & Science of Prompting",
+    author: "Veer Sukhadiya",
+    price: 149,
+    actualPrice: 199,
+    color: "#1e1b4b",
+    accent: "#312e81",
+    genre: "AI / Technology",
+    pages: 65,
+    cover: "/images/The Art & Science of Prompting.png",
+    reader: "/readers/The_Art_and_Science_of_Prompting_Reader-1.html",
+    pdf: "/books/The Art and Science of Prompting (1).pdf",
+    description:
+      "Master the art of AI prompt engineering. A practical guide to crafting effective prompts, unlocking LLM potential, and building intelligent AI workflows.",
+    highlights: [
+      "Step-by-step prompt engineering frameworks and patterns",
+      "Real-world examples for ChatGPT, Claude, and Gemini",
+      "Interactive digital reader with custom dark and sepia reading modes",
+    ],
+  },
 ];
 
 // Convenience lookups
@@ -151,6 +173,19 @@ function resolveBookCover(cover?: string): string {
   return "/images/default-book.svg";
 }
 
+function resolveBookReader(reader?: string, slug?: string, title?: string): string {
+  if (slug === "the-art-and-science-of-prompting" || (title && title.toLowerCase().includes("prompting"))) {
+    return "/readers/The_Art_and_Science_of_Prompting_Reader-1.html";
+  }
+  if (reader && reader.trim() && reader !== "/readers/default-reader.html") {
+    return reader;
+  }
+  if (slug) {
+    return `/reader/${slug}`;
+  }
+  return "/readers/default-reader.html";
+}
+
 export async function getAllBooks(): Promise<Book[]> {
   try {
     await connectDB();
@@ -170,7 +205,7 @@ export async function getAllBooks(): Promise<Book[]> {
         genre: doc.genre || "General",
         pages: doc.pages || 0,
         cover: resolveBookCover(doc.cover),
-        reader: doc.reader || "/readers/default-reader.html",
+        reader: resolveBookReader(doc.reader, doc.slug, doc.title),
         pdf: doc.pdf || "/books/default-book.pdf",
         description: doc.description || "",
         highlights: doc.highlights || [],
@@ -187,7 +222,9 @@ export async function getBookBySlugFromDB(slug: string): Promise<Book | null> {
   try {
     await connectDB();
     const doc = await BookModel.findOne({ slug, isActive: true }).lean();
-    if (!doc) return null;
+    if (!doc) {
+      return getBookBySlug(slug) || null;
+    }
     return {
       id: doc.id,
       slug: doc.slug,
@@ -200,7 +237,7 @@ export async function getBookBySlugFromDB(slug: string): Promise<Book | null> {
       genre: doc.genre || "General",
       pages: doc.pages || 0,
       cover: resolveBookCover(doc.cover),
-      reader: doc.reader || "/readers/default-reader.html",
+      reader: resolveBookReader(doc.reader, doc.slug, doc.title),
       pdf: doc.pdf || "/books/default-book.pdf",
       description: doc.description || "",
       highlights: doc.highlights || [],
@@ -208,6 +245,6 @@ export async function getBookBySlugFromDB(slug: string): Promise<Book | null> {
     };
   } catch (error) {
     console.error("getBookBySlugFromDB error:", error);
-    return null;
+    return getBookBySlug(slug) || null;
   }
 }

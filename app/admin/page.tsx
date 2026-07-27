@@ -156,7 +156,7 @@ export default function AdminPage() {
       uploadData.append("slug", form.slug);
       uploadData.append("actualPrice", String(actualVal || sellingVal));
       uploadData.append("sellingPrice", String(sellingVal || actualVal));
-      uploadData.append("description", form.description);
+      uploadData.append("description", form.description || form.title);
       if (form.htmlContent) uploadData.append("htmlContent", form.htmlContent);
       uploadData.append("genre", form.genre);
       uploadData.append("pages", String(Number(form.pages || 0)));
@@ -227,12 +227,12 @@ export default function AdminPage() {
       const bookId = editingBook._id || String(editingBook.id);
       const uploadData = new FormData();
       uploadData.append("id", bookId);
-      uploadData.append("title", editingBook.title);
-      uploadData.append("author", editingBook.author);
-      uploadData.append("slug", editingBook.slug);
-      uploadData.append("actualPrice", String(editingBook.actualPrice || editingBook.sellingPrice || editingBook.price));
-      uploadData.append("sellingPrice", String(editingBook.sellingPrice || editingBook.price));
-      uploadData.append("description", editingBook.description);
+      uploadData.append("title", editingBook.title || "");
+      uploadData.append("author", editingBook.author || "");
+      uploadData.append("slug", editingBook.slug || "");
+      uploadData.append("actualPrice", String(editingBook.actualPrice || editingBook.sellingPrice || editingBook.price || 0));
+      uploadData.append("sellingPrice", String(editingBook.sellingPrice || editingBook.price || 0));
+      uploadData.append("description", editingBook.description || editingBook.title || "");
       if (editingBook.htmlContent) uploadData.append("htmlContent", editingBook.htmlContent);
       uploadData.append("genre", editingBook.genre || "General");
       uploadData.append("pages", String(editingBook.pages || 0));
@@ -251,14 +251,23 @@ export default function AdminPage() {
         body: uploadData,
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Failed to update book");
+      const text = await res.text();
+      let data: { error?: string; message?: string } | null = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || text || "Unable to Edit Book");
+      }
 
       alert("✅ Book updated successfully!");
       setEditingBook(null);
       await loadBooks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update book");
+      alert(err instanceof Error ? err.message : "Unable to Edit Book");
     } finally {
       setSubmitting(false);
     }

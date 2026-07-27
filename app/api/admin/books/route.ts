@@ -15,10 +15,12 @@ const UPLOAD_ROOT = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads"
 function sanitizeReaderHtml(html: string) {
   if (!html) return html;
   let s = String(html);
-  s = s.replace(/<div[^>]*id=["']?toolbar["']?[^>]*>[\s\S]*?<\/div>/gi, "");
-  s = s.replace(/<div[^>]*id=["']?thumb-strip["']?[^>]*>[\s\S]*?<\/div>/gi, "");
-  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
-  s = s.replace(/ on[a-zA-Z]+=(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)/gi, "");
+  // For large HTML documents (e.g. multi-megabyte standalone book readers), skip recursive regex parsing to avoid V8 call stack overflow
+  if (s.length > 500000) {
+    return s;
+  }
+  s = s.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+  s = s.replace(/ on[a-zA-Z]+=["'][^"']*["']/gi, "");
   return s;
 }
 
@@ -116,8 +118,8 @@ export async function POST(req: NextRequest) {
       readerFileName,
     } = body;
 
-    if (!title || !author || !description || !htmlContent) {
-      return NextResponse.json({ error: "Missing required fields (title, author, description, htmlContent)" }, { status: 400 });
+    if (!title || !author) {
+      return NextResponse.json({ error: "Missing required fields (title, author)" }, { status: 400 });
     }
 
     const safeSlug = (slug || title)
@@ -178,7 +180,7 @@ export async function POST(req: NextRequest) {
       actualPrice: actual,
       sellingPrice: price,
       price,
-      description,
+      description: description || title,
       htmlContent: persistedHtmlContent,
       color: color || "#2c3e50",
       accent: accent || "#1a252f",
@@ -251,8 +253,8 @@ export async function PUT(req: NextRequest) {
       pdf,
     } = body;
 
-    if (!id || !title || !author || !description) {
-      return NextResponse.json({ error: "Missing required book data (id, title, author, description)" }, { status: 400 });
+    if (!id || !title || !author) {
+      return NextResponse.json({ error: "Missing required book data (id, title, author)" }, { status: 400 });
     }
 
     const safeSlug = String(slug || title)
@@ -287,7 +289,7 @@ export async function PUT(req: NextRequest) {
       actualPrice: actual,
       sellingPrice: price,
       price,
-      description,
+      description: description || title,
       genre: genre || "General",
       pages: Number(pages || 0),
       color: color || "#2c3e50",
