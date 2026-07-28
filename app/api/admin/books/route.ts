@@ -13,15 +13,7 @@ const MAX_HTML_CONTENT_BYTES = 1024 * 1024;
 const UPLOAD_ROOT = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
 function sanitizeReaderHtml(html: string) {
-  if (!html) return html;
-  let s = String(html);
-  // For large HTML documents (e.g. multi-megabyte standalone book readers), skip recursive regex parsing to avoid V8 call stack overflow
-  if (s.length > 500000) {
-    return s;
-  }
-  s = s.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  s = s.replace(/ on[a-zA-Z]+=["'][^"']*["']/gi, "");
-  return s;
+  return html || "";
 }
 
 async function persistHtmlContent(htmlContent: string, slug: string) {

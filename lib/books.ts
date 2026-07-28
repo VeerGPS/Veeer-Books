@@ -181,6 +181,16 @@ function resolveBookReader(reader?: string, slug?: string, title?: string): stri
     return reader;
   }
   if (slug) {
+    const knownStaticReaders = [
+      "the-circle-of-ash",
+      "the-1-percent-rule",
+      "the-shattered-sky",
+      "fairy-tales-for-kids",
+      "the-student-success-system",
+    ];
+    if (knownStaticReaders.includes(slug)) {
+      return `/readers/${slug}.html`;
+    }
     return `/reader/${slug}`;
   }
   return "/readers/default-reader.html";
