@@ -174,24 +174,33 @@ function resolveBookCover(cover?: string): string {
 }
 
 function resolveBookReader(reader?: string, slug?: string, title?: string): string {
-  if (slug === "the-art-and-science-of-prompting" || (title && title.toLowerCase().includes("prompting"))) {
+  const cleanTitle = (title || "").toLowerCase();
+  const cleanSlug = (slug || "").toLowerCase();
+
+  if (cleanSlug.includes("circle") || cleanTitle.includes("circle of ash")) {
+    return "/readers/the-circle-of-ash.html";
+  }
+  if (cleanSlug.includes("prompting") || cleanTitle.includes("prompting")) {
     return "/readers/The_Art_and_Science_of_Prompting_Reader-1.html";
   }
+  if (cleanSlug.includes("percent") || cleanTitle.includes("1%")) {
+    return "/readers/the-1-percent-rule.html";
+  }
+  if (cleanSlug.includes("shattered") || cleanTitle.includes("shattered")) {
+    return "/readers/the-shattered-sky.html";
+  }
+  if (cleanSlug.includes("fairy") || cleanTitle.includes("fairy")) {
+    return "/readers/fairy-tales-for-kids.html";
+  }
+  if (cleanSlug.includes("student") || cleanTitle.includes("student")) {
+    return "/readers/the-student-success-system.html";
+  }
+
   if (reader && reader.trim() && reader !== "/readers/default-reader.html") {
     return reader;
   }
   if (slug) {
-    const knownStaticReaders = [
-      "the-circle-of-ash",
-      "the-1-percent-rule",
-      "the-shattered-sky",
-      "fairy-tales-for-kids",
-      "the-student-success-system",
-    ];
-    if (knownStaticReaders.includes(slug)) {
-      return `/readers/${slug}.html`;
-    }
-    return `/reader/${slug}`;
+    return `/readers/${slug}.html`;
   }
   return "/readers/default-reader.html";
 }

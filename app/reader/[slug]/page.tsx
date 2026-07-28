@@ -29,12 +29,21 @@ export default async function DynamicReaderPage({ params }: { params: { slug: st
 
   // Determine reader source URL
   let readerSrc = book.reader;
-  if (!readerSrc || readerSrc === "/readers/default-reader.html") {
-    if (params.slug === "the-art-and-science-of-prompting") {
-      readerSrc = "/readers/The_Art_and_Science_of_Prompting_Reader-1.html";
-    } else {
-      readerSrc = `/readers/${params.slug}.html`;
-    }
+  const cleanSlug = params.slug.toLowerCase();
+  if (cleanSlug.includes("circle")) {
+    readerSrc = "/readers/the-circle-of-ash.html";
+  } else if (cleanSlug.includes("prompting")) {
+    readerSrc = "/readers/The_Art_and_Science_of_Prompting_Reader-1.html";
+  } else if (cleanSlug.includes("percent")) {
+    readerSrc = "/readers/the-1-percent-rule.html";
+  } else if (cleanSlug.includes("shattered")) {
+    readerSrc = "/readers/the-shattered-sky.html";
+  } else if (cleanSlug.includes("fairy")) {
+    readerSrc = "/readers/fairy-tales-for-kids.html";
+  } else if (cleanSlug.includes("student")) {
+    readerSrc = "/readers/the-student-success-system.html";
+  } else if (!readerSrc || readerSrc === "/readers/default-reader.html") {
+    readerSrc = `/readers/${params.slug}.html`;
   }
 
   // If static reader HTML file or uploaded reader HTML exists, render iframe reader
