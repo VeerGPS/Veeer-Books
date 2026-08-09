@@ -155,3 +155,4 @@ export const OTP = (mongoose.models.OTP as mongoose.Model<IOTP>) || model<IOTP>(
 export const BookModel = (mongoose.models.Book as mongoose.Model<IBook>) || model<IBook>("Book", bookSchema);
 export const CouponModel = (mongoose.models.Coupon as mongoose.Model<ICoupon>) || model<ICoupon>("Coupon", couponSchema);
 export const Order = (mongoose.models.Order as mongoose.Model<IOrder>) || model<IOrder>("Order", orderSchema);
+
