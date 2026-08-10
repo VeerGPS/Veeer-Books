@@ -147,6 +147,35 @@ const orderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
+// ─── Bundle ──────────────────────────────────────────────────────────────────
+export interface IBundle {
+  _id: Types.ObjectId;
+  slug: string;
+  title: string;
+  description: string;
+  bookIds: number[];
+  originalPrice: number;
+  bundlePrice: number;
+  badge: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const bundleSchema = new Schema<IBundle>(
+  {
+    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
+    bookIds: [{ type: Number, required: true }],
+    originalPrice: { type: Number, required: true, default: 0 },
+    bundlePrice: { type: Number, required: true, default: 0 },
+    badge: { type: String, default: "🔥 LIMITED TIME OFFER" },
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
 // `mongoose.models.X || model("X", schema)` is the canonical pattern for Next.js
 // hot-reload — without it, every reload tries to redefine the model and throws
 // `OverwriteModelError`.
@@ -155,4 +184,6 @@ export const OTP = (mongoose.models.OTP as mongoose.Model<IOTP>) || model<IOTP>(
 export const BookModel = (mongoose.models.Book as mongoose.Model<IBook>) || model<IBook>("Book", bookSchema);
 export const CouponModel = (mongoose.models.Coupon as mongoose.Model<ICoupon>) || model<ICoupon>("Coupon", couponSchema);
 export const Order = (mongoose.models.Order as mongoose.Model<IOrder>) || model<IOrder>("Order", orderSchema);
+export const BundleModel = (mongoose.models.Bundle as mongoose.Model<IBundle>) || model<IBundle>("Bundle", bundleSchema);
+
 

@@ -18,6 +18,7 @@ type CartContextValue = {
   items: number[];
   hasItem: (id: number) => boolean;
   add: (id: number) => void;
+  addMultiple: (ids: number[]) => void;
   remove: (id: number) => void;
   clear: () => void;
 };
@@ -58,6 +59,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addMultiple = useCallback((ids: number[]) => {
+    setItems((prev) => {
+      const uniqueNew = ids.filter((id) => !prev.includes(id));
+      if (uniqueNew.length === 0) return prev;
+      const next = [...prev, ...uniqueNew];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   const remove = useCallback((id: number) => {
     setItems((prev) => {
       const next = prev.filter((x) => x !== id);
@@ -73,8 +86,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const hasItem = useCallback((id: number) => items.includes(id), [items]);
 
   const value = useMemo<CartContextValue>(
-    () => ({ items, hasItem, add, remove, clear }),
-    [items, hasItem, add, remove, clear]
+    () => ({ items, hasItem, add, addMultiple, remove, clear }),
+    [items, hasItem, add, addMultiple, remove, clear]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
+import PreviewIframeContainer from "./PreviewIframeContainer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,9 +24,17 @@ export async function generateMetadata({
   };
 }
 
-export default async function DynamicReaderPage({ params }: { params: { slug: string } }) {
+export default async function DynamicReaderPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams?: { preview?: string };
+}) {
   const book = await getBookBySlugFromDB(params.slug);
   if (!book) notFound();
+
+  const isPreview = searchParams?.preview === "true";
 
   // Determine reader source URL
   let readerSrc = book.reader;
@@ -46,16 +55,16 @@ export default async function DynamicReaderPage({ params }: { params: { slug: st
     readerSrc = `/readers/${params.slug}.html`;
   }
 
-  // If static reader HTML file or uploaded reader HTML exists, render iframe reader
+  // If static reader HTML file or uploaded reader HTML exists, render full 100% immersive reader
   if (readerSrc && readerSrc.endsWith(".html")) {
     return (
-      <div style={{ width: "100vw", height: "100vh", margin: 0, padding: 0, overflow: "hidden", backgroundColor: "#0f172a" }}>
-        <iframe
-          src={readerSrc}
-          title={book.title}
-          style={{ width: "100%", height: "100%", border: "none" }}
-        />
-      </div>
+      <PreviewIframeContainer
+        readerSrc={readerSrc}
+        title={book.title}
+        isPreview={isPreview}
+        bookSlug={book.slug}
+        bookPrice={book.price}
+      />
     );
   }
 
@@ -64,8 +73,8 @@ export default async function DynamicReaderPage({ params }: { params: { slug: st
     <main style={{ minHeight: "100vh", backgroundColor: "#0f172a", color: "#f8fafc", padding: "2rem 1rem" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-          <Link href="/library" className="btn btn-outline btn-sm" style={{ color: "#c5a059", borderColor: "#c5a059" }}>
-            ← Back to Library
+          <Link href={`/product/${book.slug}`} className="btn btn-outline btn-sm" style={{ color: "#c5a059", borderColor: "#c5a059" }}>
+            ← Back to Product Page
           </Link>
           <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>{book.genre}</span>
         </div>
@@ -88,11 +97,6 @@ export default async function DynamicReaderPage({ params }: { params: { slug: st
         ) : (
           <div style={{ backgroundColor: "#1e293b", padding: "2.5rem", borderRadius: "12px", border: "1px solid #334155" }}>
             <p style={{ lineHeight: 1.8, fontSize: "1.1rem", marginBottom: "1.5rem" }}>{book.description}</p>
-            {book.pdf ? (
-              <a href={book.pdf} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                📖 Open PDF Version
-              </a>
-            ) : null}
           </div>
         )}
       </div>

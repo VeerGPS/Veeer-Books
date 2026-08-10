@@ -33,6 +33,18 @@ type AdminCoupon = {
   active: boolean;
 };
 
+type AdminBundle = {
+  _id: string;
+  slug: string;
+  title: string;
+  description: string;
+  bookIds: number[];
+  originalPrice: number;
+  bundlePrice: number;
+  badge: string;
+  isActive: boolean;
+};
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authorized, setAuthorized] = useState(false);
@@ -82,12 +94,30 @@ export default function AdminPage() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [deletingCoupon, setDeletingCoupon] = useState("");
 
+  // Bundles state
+  const [bundles, setBundles] = useState<AdminBundle[]>([]);
+  const [bundlesLoading, setBundlesLoading] = useState(false);
+  const [bundleMessage, setBundleMessage] = useState("");
+  const [deletingBundleId, setDeletingBundleId] = useState("");
+
+  const [bundleForm, setBundleForm] = useState({
+    title: "",
+    slug: "",
+    description: "",
+    selectedBookIds: [] as number[],
+    originalPrice: "0",
+    bundlePrice: "",
+    badge: "🔥 LIMITED TIME OFFER",
+    isActive: true,
+  });
+
   const unlock = () => {
     if (password === ADMIN_PASSWORD) {
       setAuthorized(true);
       setError("");
       void loadBooks();
       void loadCoupons();
+      void loadBundles();
     } else {
       setError("Incorrect admin password.");
     }
@@ -127,6 +157,23 @@ export default function AdminPage() {
       setCouponMessage(err instanceof Error ? err.message : "Failed to load coupons");
     } finally {
       setCouponsLoading(false);
+    }
+  };
+
+  const loadBundles = async () => {
+    setBundlesLoading(true);
+    setBundleMessage("");
+    try {
+      const res = await fetch("/api/admin/bundles", {
+        headers: { "x-admin-password": ADMIN_PASSWORD },
+      });
+      const data: { error?: string; bundles?: AdminBundle[] } = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load bundles");
+      setBundles(data.bundles || []);
+    } catch (err) {
+      setBundleMessage(err instanceof Error ? err.message : "Failed to load bundles");
+    } finally {
+      setBundlesLoading(false);
     }
   };
 
@@ -346,6 +393,121 @@ export default function AdminPage() {
     }
   };
 
+  // Bundle Book Selection Toggle
+  const toggleBookInBundle = (bookId: number) => {
+    setBundleForm((prev) => {
+      const current = prev.selectedBookIds;
+      const next = current.includes(bookId)
+        ? current.filter((id) => id !== bookId)
+        : [...current, bookId];
+
+      const sumOriginal = next.reduce((sum, id) => {
+        const found = books.find((b) => b.id === id);
+        return sum + (found ? (found.price || found.sellingPrice || 0) : 0);
+      }, 0);
+
+      return {
+        ...prev,
+        selectedBookIds: next,
+        originalPrice: String(sumOriginal),
+      };
+    });
+  };
+
+  const createBundle = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBundleMessage("");
+
+    try {
+      if (bundleForm.selectedBookIds.length === 0) {
+        throw new Error("Please select at least 1 book for the bundle campaign.");
+      }
+      if (!bundleForm.bundlePrice || Number(bundleForm.bundlePrice) <= 0) {
+        throw new Error("Please enter a valid special bundle price greater than ₹0.");
+      }
+
+      const res = await fetch("/api/admin/bundles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": ADMIN_PASSWORD,
+        },
+        body: JSON.stringify({
+          title: bundleForm.title,
+          slug: bundleForm.slug,
+          description: bundleForm.description,
+          bookIds: bundleForm.selectedBookIds,
+          originalPrice: Number(bundleForm.originalPrice || 0),
+          bundlePrice: Number(bundleForm.bundlePrice),
+          badge: bundleForm.badge || "🔥 LIMITED TIME OFFER",
+          isActive: bundleForm.isActive,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to create bundle offer");
+
+      alert(`✅ Bundle Offer "${bundleForm.title}" created successfully!`);
+      setBundleMessage(`Bundle Offer "${bundleForm.title}" created successfully.`);
+      setBundleForm({
+        title: "",
+        slug: "",
+        description: "",
+        selectedBookIds: [],
+        originalPrice: "0",
+        bundlePrice: "",
+        badge: "🔥 LIMITED TIME OFFER",
+        isActive: true,
+      });
+      await loadBundles();
+    } catch (err) {
+      setBundleMessage(err instanceof Error ? err.message : "Failed to create bundle offer");
+    }
+  };
+
+  const deleteBundle = async (bundle: AdminBundle) => {
+    if (!window.confirm(`Delete bundle campaign "${bundle.title}"? This cannot be undone.`)) return;
+
+    setDeletingBundleId(bundle._id);
+    setBundleMessage("");
+    try {
+      const res = await fetch(`/api/admin/bundles?id=${encodeURIComponent(bundle._id)}`, {
+        method: "DELETE",
+        headers: { "x-admin-password": ADMIN_PASSWORD },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete bundle");
+
+      setBundles((current) => current.filter((b) => b._id !== bundle._id));
+      setBundleMessage(`Bundle offer "${bundle.title}" deleted.`);
+    } catch (err) {
+      setBundleMessage(err instanceof Error ? err.message : "Failed to delete bundle");
+    } finally {
+      setDeletingBundleId("");
+    }
+  };
+
+  const toggleBundleActive = async (bundle: AdminBundle) => {
+    try {
+      const res = await fetch("/api/admin/bundles", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": ADMIN_PASSWORD,
+        },
+        body: JSON.stringify({
+          id: bundle._id,
+          isActive: !bundle.isActive,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to update bundle");
+      await loadBundles();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update bundle");
+    }
+  };
+
   // Light Theme styling helper
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -399,18 +561,22 @@ export default function AdminPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", paddingBottom: "1.25rem", borderBottom: "2px solid #f1f5f9" }}>
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>Admin Dashboard</h1>
-            <p style={{ color: "#475569", margin: "0.25rem 0 0 0", fontSize: "0.95rem" }}>Manage book catalogue, pricing, uploaded files, and coupons with light mode theme.</p>
+            <p style={{ color: "#475569", margin: "0.25rem 0 0 0", fontSize: "0.95rem" }}>Manage book catalogue, pricing, uploaded files, bundles, and coupons.</p>
           </div>
-          <button className="btn btn-outline btn-sm" onClick={loadBooks} disabled={booksLoading} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
+          <button className="btn btn-outline btn-sm" onClick={() => { void loadBooks(); void loadBundles(); void loadCoupons(); }} disabled={booksLoading} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
             {booksLoading ? "Refreshing..." : "🔄 Refresh Catalogue"}
           </button>
         </div>
 
         {/* ─── Metrics Cards ─── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
           <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
             <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Total Books</span>
             <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "#b45309", marginTop: "0.25rem" }}>{books.length}</div>
+          </div>
+          <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
+            <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Bundle Campaigns</span>
+            <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "#4f46e5", marginTop: "0.25rem" }}>{bundles.length}</div>
           </div>
           <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
             <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Active Coupons</span>
@@ -622,6 +788,110 @@ export default function AdminPage() {
           {error ? <p style={{ color: "#dc2626", marginBottom: "1.25rem", fontWeight: 600 }}>{error}</p> : null}
           <button className="btn btn-primary btn-full" disabled={submitting} style={{ padding: "0.9rem", fontSize: "1.05rem", fontWeight: 700 }}>{submitting ? "Publishing Book..." : "🚀 Publish Book"}</button>
         </form>
+
+        {/* ─── Bundle Offer Campaign Management Section ─── */}
+        <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>🎁 Bundle Offer Campaigns</h2>
+        <p style={{ color: "#475569", marginBottom: "1.75rem", fontSize: "0.95rem" }}>Combine multiple books into a limited-time promotional bundle offer on the website without an ending date.</p>
+
+        <form onSubmit={createBundle} style={{ backgroundColor: "#f8fafc", padding: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="bundleTitle" style={labelStyle}>Bundle Offer Title *</label>
+            <input id="bundleTitle" required value={bundleForm.title} onChange={(e) => setBundleForm({ ...bundleForm, title: e.target.value })} placeholder="e.g. Master Productivity & Tech Bundle" style={inputStyle} />
+          </div>
+
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="bundleSlug" style={labelStyle}>Bundle Slug (URL path)</label>
+            <input id="bundleSlug" value={bundleForm.slug} onChange={(e) => setBundleForm({ ...bundleForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") })} placeholder="auto-generated if left empty" style={inputStyle} />
+          </div>
+
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label htmlFor="bundleDesc" style={labelStyle}>Bundle Summary Description</label>
+            <textarea id="bundleDesc" rows={3} value={bundleForm.description} onChange={(e) => setBundleForm({ ...bundleForm, description: e.target.value })} style={{ ...inputStyle, fontFamily: "inherit" }} placeholder="Highlight what makes this collection special..." />
+          </div>
+
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label style={labelStyle}>Select Books Included in Bundle * ({bundleForm.selectedBookIds.length} selected)</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "0.75rem", maxHeight: 220, overflowY: "auto", border: "1px solid #cbd5e1", padding: "1rem", borderRadius: "8px", backgroundColor: "#ffffff" }}>
+              {books.map((b) => {
+                const isSelected = bundleForm.selectedBookIds.includes(b.id);
+                return (
+                  <label key={b._id || b.id} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.9rem", color: "#0f172a", cursor: "pointer", userSelect: "none" }}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleBookInBundle(b.id)} style={{ width: 18, height: 18, cursor: "pointer" }} />
+                    <span style={{ fontWeight: isSelected ? 700 : 400 }}>{b.title} (₹{b.sellingPrice || b.price})</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
+            <div>
+              <label htmlFor="bundleOriginalPrice" style={labelStyle}>Original Sum Price (INR)</label>
+              <input id="bundleOriginalPrice" type="number" value={bundleForm.originalPrice} onChange={(e) => setBundleForm({ ...bundleForm, originalPrice: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <label htmlFor="bundlePriceVal" style={labelStyle}>Special Bundle Price (INR) *</label>
+              <input id="bundlePriceVal" type="number" min="1" required value={bundleForm.bundlePrice} onChange={(e) => setBundleForm({ ...bundleForm, bundlePrice: e.target.value })} placeholder="e.g. 299" style={inputStyle} />
+            </div>
+            <div>
+              <label htmlFor="bundleBadge" style={labelStyle}>Promotional Badge</label>
+              <input id="bundleBadge" value={bundleForm.badge} onChange={(e) => setBundleForm({ ...bundleForm, badge: e.target.value })} placeholder="e.g. 🔥 LIMITED TIME OFFER" style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            <input id="bundleIsActive" type="checkbox" checked={bundleForm.isActive} onChange={(e) => setBundleForm({ ...bundleForm, isActive: e.target.checked })} style={{ width: 18, height: 18, cursor: "pointer" }} />
+            <label htmlFor="bundleIsActive" style={{ fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Is Live on Website</label>
+          </div>
+
+          {bundleMessage ? <p style={{ color: bundleMessage.includes("success") ? "#15803d" : "#dc2626", marginBottom: "1.25rem", fontWeight: 500 }}>{bundleMessage}</p> : null}
+          <button className="btn btn-primary btn-full" type="submit" style={{ padding: "0.85rem", fontWeight: 600 }}>🎁 Save Bundle Campaign</button>
+        </form>
+
+        {/* Existing Bundles List */}
+        <div style={{ marginBottom: "3rem" }}>
+          <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>Active Bundle Campaigns ({bundles.length})</h3>
+          {bundlesLoading ? <p style={{ color: "#475569" }}>Loading bundles...</p> : null}
+          {!bundlesLoading && bundles.length === 0 ? (
+            <p style={{ padding: "1.5rem", textAlign: "center", border: "1px dashed #cbd5e1", borderRadius: "8px", color: "#475569", backgroundColor: "#ffffff" }}>
+              No bundle offers created yet. Create one above to offer multi-book discounts!
+            </p>
+          ) : null}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {bundles.map((bnd) => (
+              <div key={bnd._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1.25rem", padding: "1.25rem", borderRadius: "12px", border: "1px solid #e2e8f0", backgroundColor: "#ffffff" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.25rem" }}>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", backgroundColor: "#fef3c7", color: "#b45309" }}>{bnd.badge || "LIMITED TIME OFFER"}</span>
+                    <strong style={{ fontSize: "1.1rem", color: "#0f172a" }}>{bnd.title}</strong>
+                  </div>
+                  <p style={{ margin: "0 0 0.4rem 0", fontSize: "0.88rem", color: "#475569" }}>{bnd.description || "Includes " + bnd.bookIds.length + " books"}</p>
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "center", fontSize: "0.95rem" }}>
+                    <span style={{ color: "#4f46e5", fontWeight: 800 }}>Special Bundle: ₹{bnd.bundlePrice}</span>
+                    {bnd.originalPrice > bnd.bundlePrice ? (
+                      <span style={{ color: "#64748b", textDecoration: "line-through", fontSize: "0.85rem" }}>Original: ₹{bnd.originalPrice}</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => toggleBundleActive(bnd)}
+                      style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 600, backgroundColor: bnd.isActive ? "#dcfce7" : "#fee2e2", color: bnd.isActive ? "#15803d" : "#b91c1c" }}>
+                        {bnd.isActive ? "Live on Website" : "Hidden"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <button className="btn btn-outline" type="button" onClick={() => deleteBundle(bnd)} disabled={deletingBundleId === bnd._id} style={{ color: "#dc2626", borderColor: "#fca5a5", backgroundColor: "#fff5f5" }}>
+                  {deletingBundleId === bnd._id ? "Deleting..." : "🗑️ Delete Bundle"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* ─── Coupon Management Section ─── */}
         <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />

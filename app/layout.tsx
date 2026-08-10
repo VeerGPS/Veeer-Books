@@ -31,7 +31,7 @@ export default function RootLayout({
           <main id="main-content">{children}</main>
           <Footer />
         </Providers>
-        <Analytics />
+        {process.env.VERCEL === "1" && <Analytics />}
 
       </body>
     </html>
