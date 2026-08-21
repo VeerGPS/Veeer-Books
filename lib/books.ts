@@ -27,14 +27,17 @@ export type Book = {
   accent: string;
   genre: string;
   pages: number;
-  cover: string;            // path under /public
-  reader: string;           // path under /public/readers (the standalone reader HTML)
-  pdf: string;              // path under /public/books
+  cover: string;            // path under /public or /api/uploads
+  reader: string;           // path under /public/readers or /api/uploads/readers
+  pdf: string;              // path under /public/books or /api/uploads/books
   description: string;
   hook?: string;            // Strong 1-line book hook
   whatYouGet?: string[];    // Deliverables list
   whoIsThisFor?: string[];  // Audience targeting
   authorBio?: string;       // Author information
+  authorId?: string;        // External author ID if applicable
+  authorSlug?: string;      // Slug for /author/[slug]
+  publisherType?: "in_house" | "external_author";
   reviews?: Review[];       // Genuine reader reviews
   highlights?: string[];    // optional bullet list shown on product page
   htmlContent?: string;
@@ -73,6 +76,7 @@ export const BOOKS: Book[] = [
       "Anyone seeking an immersive, fast-paced literary adventure",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     highlights: [
       "Atmospheric mystery worldbuilding with strong narrative pacing",
       "Character-led conflict with a layered emotional arc",
@@ -134,6 +138,7 @@ export const BOOKS: Book[] = [
       "Readers who prefer short, high-value, fluff-free self-help guides",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     highlights: [
       "Actionable habit compounding frameworks",
       "Daily 1% progress blueprint for immediate execution",
@@ -185,6 +190,7 @@ export const BOOKS: Book[] = [
       "Readers who appreciate rich worldbuilding and emotional storytelling",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     reviews: [
       {
         id: "r6",
@@ -223,6 +229,7 @@ export const BOOKS: Book[] = [
       "Young readers building early reading skills and imagination",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     reviews: [
       {
         id: "r7",
@@ -262,6 +269,7 @@ export const BOOKS: Book[] = [
       "Learners aiming to optimize study hours and conquer academic anxiety",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     reviews: [
       {
         id: "r8",
@@ -301,6 +309,7 @@ export const BOOKS: Book[] = [
       "Anyone wanting to automate daily tasks using AI tools effectively",
     ],
     authorBio: DEFAULT_AUTHOR_BIO,
+    publisherType: "in_house",
     highlights: [
       "Step-by-step prompt engineering frameworks and patterns",
       "Real-world examples for ChatGPT, Claude, and Gemini",
@@ -417,7 +426,10 @@ export async function getAllBooks(): Promise<Book[]> {
             "Enthusiastic readers looking for quality digital books",
             "Anyone interested in engaging stories and actionable guides",
           ],
-          authorBio: local?.authorBio || DEFAULT_AUTHOR_BIO,
+          authorBio: d.authorBio || local?.authorBio || DEFAULT_AUTHOR_BIO,
+          authorId: d.authorId ? d.authorId.toString() : undefined,
+          authorSlug: d.authorSlug || undefined,
+          publisherType: d.publisherType || "in_house",
           reviews: local?.reviews || [
             {
               id: "db1",
@@ -478,7 +490,10 @@ export async function getBookBySlugFromDB(slug: string): Promise<Book | undefine
           "Enthusiastic readers looking for quality digital books",
           "Anyone interested in engaging stories and actionable guides",
         ],
-        authorBio: localBook?.authorBio || DEFAULT_AUTHOR_BIO,
+        authorBio: doc.authorBio || localBook?.authorBio || DEFAULT_AUTHOR_BIO,
+        authorId: doc.authorId ? doc.authorId.toString() : undefined,
+        authorSlug: doc.authorSlug || undefined,
+        publisherType: doc.publisherType || "in_house",
         reviews: localBook?.reviews || [
           {
             id: "db1",

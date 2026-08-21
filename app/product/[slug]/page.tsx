@@ -109,7 +109,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
               {book.title}
             </h1>
             <p className="product-author" style={{ color: "#8c7647", fontSize: "1.05rem", fontWeight: 600, marginBottom: "0.85rem" }}>
-              By {book.author}
+              By{" "}
+              <Link
+                href={`/author/${book.authorSlug || (book.author.toLowerCase().includes("veer") ? "veer-sukhadiya" : book.author.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`}
+                style={{ color: "#8c7647", textDecoration: "underline" }}
+              >
+                {book.author}
+              </Link>
             </p>
 
             {/* Strong One-Line Book Hook */}
@@ -242,9 +248,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
             </div>
           </div>
 
-          <p style={{ color: "#d6d3d1", fontSize: "1rem", lineHeight: 1.7, margin: 0 }}>
+          <p style={{ color: "#d6d3d1", fontSize: "1rem", lineHeight: 1.7, margin: "0 0 1.25rem 0" }}>
             {book.authorBio || "Veer Sukhadiya is a digital author and creator dedicated to writing compelling fiction, practical self-improvement guides, and cutting-edge technology resources. With a focus on reader accessibility, all books include high-quality standalone eBook readers and instant PDF downloads."}
           </p>
+
+          <Link
+            href={`/author/${book.authorSlug || (book.author.toLowerCase().includes("veer") ? "veer-sukhadiya" : book.author.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`}
+            className="btn btn-outline btn-sm"
+            style={{ color: "#c5a059", borderColor: "#c5a059" }}
+          >
+            View Author Profile & All Books →
+          </Link>
         </section>
 
         {/* ─── GENUINE READER REVIEWS SECTION ─── */}

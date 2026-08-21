@@ -1,10 +1,5 @@
 "use client";
-// Centralised authentication state.
-//
-// In the original logic.js the auth token + purchasedBooks lived in
-// localStorage and were read/written ad-hoc all over the codebase.
-// We keep localStorage as the persistence layer (so refresh works
-// the same), but put a thin React context on top for components.
+// Centralised authentication and author state.
 
 import {
   createContext,
@@ -19,10 +14,15 @@ import {
 type AuthState = {
   token: string | null;
   purchasedBooks: number[];
+  isAuthor: boolean;
+  authorStatus: "active" | "pending" | "suspended" | null;
+  authorProfile: any | null;
 };
 
 type AuthContextValue = AuthState & {
   isLoggedIn: boolean;
+  isReady: boolean;
+  refreshAuthorStatus: () => Promise<void>;
   setSession: (token: string, purchasedBooks: number[]) => void;
   addPurchasedBooks: (ids: number[]) => void;
   logout: () => void;
@@ -34,7 +34,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     token: null,
     purchasedBooks: [],
+    isAuthor: false,
+    authorStatus: null,
+    authorProfile: null,
   });
+  const [isReady, setIsReady] = useState(false);
+
+  const fetchAuthorStatus = useCallback(async (tokenToUse: string | null) => {
+    if (!tokenToUse) {
+      setState((prev) => ({
+        ...prev,
+        isAuthor: false,
+        authorStatus: null,
+        authorProfile: null,
+      }));
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/author/profile", {
+        headers: { Authorization: `Bearer ${tokenToUse}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.profile && data.profile.status === "active") {
+          setState((prev) => ({
+            ...prev,
+            isAuthor: true,
+            authorStatus: data.profile.status,
+            authorProfile: data.profile,
+          }));
+          return;
+        } else if (data?.profile) {
+          setState((prev) => ({
+            ...prev,
+            isAuthor: Boolean(data.profile._id),
+            authorStatus: data.profile.status,
+            authorProfile: data.profile,
+          }));
+          return;
+        }
+      }
+      setState((prev) => ({
+        ...prev,
+        isAuthor: false,
+        authorStatus: null,
+        authorProfile: null,
+      }));
+    } catch {
+      setState((prev) => ({
+        ...prev,
+        isAuthor: false,
+        authorStatus: null,
+        authorProfile: null,
+      }));
+    }
+  }, []);
 
   // Hydrate from localStorage on mount (client-only)
   useEffect(() => {
@@ -42,11 +97,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem("auth_token");
       const raw = localStorage.getItem("purchased_books");
       const purchased = raw ? (JSON.parse(raw) as number[]) : [];
-      if (token) setState({ token, purchasedBooks: purchased });
+      if (token) {
+        setState((prev) => ({ ...prev, token, purchasedBooks: purchased }));
+        fetchAuthorStatus(token);
+      }
     } catch {
       /* ignore corrupted storage */
+    } finally {
+      setIsReady(true);
     }
-  }, []);
+  }, [fetchAuthorStatus]);
+
+  const refreshAuthorStatus = useCallback(async () => {
+    const currentToken = state.token || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
+    if (currentToken) {
+      await fetchAuthorStatus(currentToken);
+    }
+  }, [state.token, fetchAuthorStatus]);
 
   const setSession = useCallback(
     (token: string, purchasedBooks: number[]) => {
@@ -55,9 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "purchased_books",
         JSON.stringify(purchasedBooks ?? [])
       );
-      setState({ token, purchasedBooks: purchasedBooks ?? [] });
+      setState((prev) => ({
+        ...prev,
+        token,
+        purchasedBooks: purchasedBooks ?? [],
+      }));
+      fetchAuthorStatus(token);
     },
-    []
+    [fetchAuthorStatus]
   );
 
   const addPurchasedBooks = useCallback((ids: number[]) => {
@@ -72,18 +144,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("purchased_books");
     localStorage.removeItem("cartItems");
-    setState({ token: null, purchasedBooks: [] });
+    setState({
+      token: null,
+      purchasedBooks: [],
+      isAuthor: false,
+      authorStatus: null,
+      authorProfile: null,
+    });
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
       isLoggedIn: !!state.token,
+      isReady,
+      refreshAuthorStatus,
       setSession,
       addPurchasedBooks,
       logout,
     }),
-    [state, setSession, addPurchasedBooks, logout]
+    [state, isReady, refreshAuthorStatus, setSession, addPurchasedBooks, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

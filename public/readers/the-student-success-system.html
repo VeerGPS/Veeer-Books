@@ -350,12 +350,14 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
 ];
 
   // ── Constants & State ────────────────────────────────
-  const IS_PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1';
-  const PREVIEW_MAX_PAGES = 5;
+  const urlParams = new URLSearchParams(window.location.search);
+  const pVal = (urlParams.get('preview') || '').toLowerCase();
+  const IS_PREVIEW = pVal === '1' || pVal === 'true' || pVal === 'yes' || window.location.search.toLowerCase().includes('preview');
+  const PREVIEW_MAX_PAGES = 8;
   if (IS_PREVIEW && PAGES.length > PREVIEW_MAX_PAGES) {
     PAGES.length = PREVIEW_MAX_PAGES;
     const bookTitleEl = document.getElementById('book-title');
-    if (bookTitleEl) bookTitleEl.textContent += ' (Preview)';
+    if (bookTitleEl) bookTitleEl.textContent = 'The Student Success System — Free Preview (8 Pages)';
   }
 
   const TOTAL      = PAGES.length;
@@ -382,7 +384,7 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
     document.body.classList.toggle('cover-solo', curPage === 1 && twoPageMode);
 
     if (!solo && curPage + 1 <= TOTAL) {
-      imgR.src   = PAGES[curPage];   // curPage is 1-based, so index = curPage
+      imgR.src   = PAGES[curPage];
       imgR.alt   = 'Page ' + (curPage + 1);
       imgR.style.display = 'block';
     } else {
@@ -397,9 +399,9 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
 
     // Counter
     if (!solo && curPage + 1 <= TOTAL) {
-      counter.textContent = curPage + '–' + (curPage + 1) + ' / ' + TOTAL;
+      counter.textContent = curPage + '–' + (curPage + 1) + ' / ' + TOTAL + (IS_PREVIEW ? ' (Preview)' : '');
     } else {
-      counter.textContent = curPage + ' / ' + TOTAL;
+      counter.textContent = curPage + ' / ' + TOTAL + (IS_PREVIEW ? ' (Preview)' : '');
     }
 
     // Button states
@@ -419,11 +421,49 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
     // Scroll viewport to top
     viewport.scrollTo({ top: 0, behavior: 'smooth' });
 
-    localStorage.setItem('coa_page', curPage);
+    if (!IS_PREVIEW) {
+      localStorage.setItem('sss_page', curPage);
+    }
+  }
+
+  // ── Preview Complete Modal ────────────────────────────
+  function showPreviewModal() {
+    if (!IS_PREVIEW) return;
+    let modal = document.getElementById('preview-limit-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'preview-limit-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(10,10,10,0.85);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem;font-family:system-ui,-apple-system,sans-serif;';
+      modal.innerHTML = `
+        <div style="background:#faf8f5;background-image:radial-gradient(circle at 50% 0%, #ffffff 0%, #f7f3ea 70%, #ece5d6 100%);border-radius:20px;border:2px solid #c5a059;box-shadow:0 25px 60px rgba(0,0,0,0.5),0 0 35px rgba(197,160,89,0.25);max-width:440px;width:100%;padding:2rem;text-align:center;color:#1a1a1a;">
+          <div style="font-size:2.2rem;margin-bottom:0.4rem;">📖</div>
+          <span style="display:inline-block;background:#fef3c7;border:1px solid #c5a059;color:#b45309;padding:3px 12px;border-radius:16px;font-size:0.72rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:0.75rem;">FREE PREVIEW COMPLETE (8 PAGES)</span>
+          <h3 style="font-size:1.45rem;font-weight:800;color:#1a1a1a;margin:0 0 0.5rem 0;line-height:1.25;">The Student Success System</h3>
+          <p style="color:#5a5a5a;font-size:0.9rem;line-height:1.5;margin-bottom:1.5rem;">You have reached the end of the free 8-page preview. Unlock the complete full eBook for instant lifetime access.</p>
+          <a href="/product/the-student-success-system" target="_top" style="display:block;width:100%;padding:0.85rem;background:#c5a059;color:#fff;text-decoration:none;border-radius:8px;font-size:1rem;font-weight:800;text-align:center;box-shadow:0 4px 15px rgba(197,160,89,0.4);">⚡ Unlock Full Book (₹149)</a>
+          <button id="preview-modal-close" style="background:none;border:none;color:#8c7647;font-size:0.85rem;margin-top:1rem;cursor:pointer;text-decoration:underline;">Back to Page 8</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('preview-modal-close').addEventListener('click', () => {
+        modal.style.display = 'none';
+        goTo(TOTAL);
+      });
+    }
+    modal.style.display = 'flex';
   }
 
   // ── Navigation ───────────────────────────────────────
   function goTo(n) {
+    if (IS_PREVIEW && n > TOTAL) {
+      try {
+        window.parent.postMessage({ type: 'PREVIEW_LIMIT_REACHED', page: n, max: TOTAL }, '*');
+      } catch(e) {}
+      curPage = TOTAL;
+      render();
+      showPreviewModal();
+      return;
+    }
     curPage = Math.min(Math.max(1, n), TOTAL);
     render();
   }
@@ -438,6 +478,13 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
   }
 
   function next() {
+    if (IS_PREVIEW && (curPage >= TOTAL || (twoPageMode && curPage + 1 >= TOTAL))) {
+      try {
+        window.parent.postMessage({ type: 'PREVIEW_LIMIT_REACHED', page: TOTAL + 1, max: TOTAL }, '*');
+      } catch(e) {}
+      showPreviewModal();
+      return;
+    }
     if (twoPageMode) {
       goTo(curPage === 1 ? 2 : curPage + 2);
     } else {
@@ -451,11 +498,10 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
     zoomLbl.textContent = Math.round(zoom * 100) + '%';
     imgL.style.transform = `scale(${zoom})`;
     imgR.style.transform = `scale(${zoom})`;
-    // Expand container to allow scrolling when zoomed
     const extra = zoom > 1 ? (zoom - 1) * 600 : 0;
     imgL.style.marginBottom = extra + 'px';
     imgR.style.marginBottom = extra + 'px';
-    localStorage.setItem('coa_zoom', zoom);
+    localStorage.setItem('sss_zoom', zoom);
   }
 
   // ── Page view mode ───────────────────────────────────
@@ -464,7 +510,7 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
     document.body.classList.toggle('two-page', two);
     document.getElementById('btn-1page').classList.toggle('active', !two);
     document.getElementById('btn-2page').classList.toggle('active',  two);
-    localStorage.setItem('coa_twopage', two ? '1' : '0');
+    localStorage.setItem('sss_twopage', two ? '1' : '0');
     render();
   }
 
@@ -480,7 +526,7 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
       document.body.classList.add('sepia');
       document.getElementById('btn-sepia').classList.add('active');
     }
-    localStorage.setItem('coa_mode', mode || '');
+    localStorage.setItem('sss_mode', mode || '');
   }
 
   // ── Build thumbnail strip (lazy) ─────────────────────
@@ -540,7 +586,7 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
   // ── Button wiring ─────────────────────────────────────
   document.getElementById('btn-back').addEventListener('click', () => {
     if (document.referrer) window.history.back();
-    else window.location.href = 'index.html';
+    else window.location.href = '/product/the-student-success-system';
   });
   document.getElementById('btn-prev').addEventListener('click', prev);
   document.getElementById('btn-next').addEventListener('click', next);
@@ -555,22 +601,49 @@ body.thumbs-open #viewport { padding-left: calc(118px + 1.25rem); }
     () => setMode(document.body.classList.contains('sepia') ? '' : 'sepia'));
 
   // ── Restore saved preferences & start ────────────────
-  const savedPage    = parseInt(localStorage.getItem('coa_page'))    || 1;
-  const savedZoom    = parseFloat(localStorage.getItem('coa_zoom'))  || 1.0;
-  const savedMode    = localStorage.getItem('coa_mode')              || '';
-  const savedTwoPage = localStorage.getItem('coa_twopage') === '1';
+  const savedPage    = IS_PREVIEW ? 1 : (parseInt(localStorage.getItem('sss_page')) || 1);
+  const savedZoom    = parseFloat(localStorage.getItem('sss_zoom'))  || 1.0;
+  const savedMode    = localStorage.getItem('sss_mode')              || '';
+  const savedTwoPage = localStorage.getItem('sss_twopage') === '1';
 
   setMode(savedMode);
   setZoom(savedZoom);
-  // Set two-page silently before first render
-  if (savedTwoPage) {
+  if (savedTwoPage && !IS_PREVIEW) {
     twoPageMode = true;
     document.body.classList.add('two-page');
     document.getElementById('btn-2page').classList.add('active');
   } else {
     document.getElementById('btn-1page').classList.add('active');
   }
+
+  // Expose on window for parent iframes
+  window.goTo = goTo;
+  window.next = next;
+  window.prev = prev;
+  window.getCurPage = function() { return curPage; };
+  window.curPage = curPage;
+  window.TOTAL = TOTAL;
+  window.IS_PREVIEW = IS_PREVIEW;
+
   goTo(savedPage);
+
+  // If preview, add a preview banner badge to the toolbar
+  if (IS_PREVIEW) {
+    const tb = document.getElementById('toolbar');
+    if (tb) {
+      const pBadge = document.createElement('div');
+      pBadge.style.cssText = 'background:#fef3c7;color:#b45309;font-weight:700;font-size:0.72rem;padding:3px 8px;border-radius:4px;border:1px solid #c5a059;white-space:nowrap;display:flex;align-items:center;gap:4px;';
+      pBadge.innerHTML = '📖 Free Preview (8 Pages)';
+      tb.insertBefore(pBadge, tb.children[2] || null);
+
+      const buyBtn = document.createElement('a');
+      buyBtn.href = '/product/the-student-success-system';
+      buyBtn.target = '_top';
+      buyBtn.style.cssText = 'background:#c5a059;color:#ffffff;font-weight:700;font-size:0.72rem;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;margin-left:auto;';
+      buyBtn.innerHTML = '⚡ Unlock Full (₹149)';
+      tb.appendChild(buyBtn);
+    }
+  }
 
 })();
 </script>

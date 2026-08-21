@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 interface PreviewIframeProps {
@@ -21,6 +21,16 @@ export default function PreviewIframeContainer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [showModal, setShowModal] = useState(false);
 
+  useEffect(() => {
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data?.type === "PREVIEW_LIMIT_REACHED") {
+        setShowModal(true);
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => window.removeEventListener("message", handleMsg);
+  }, []);
+
   const handleIframeLoad = () => {
     if (!isPreview || !iframeRef.current) return;
 
@@ -31,6 +41,7 @@ export default function PreviewIframeContainer({
       let curPageTracked = 1;
 
       const getCurPage = () => {
+        if (typeof win.getCurPage === "function") return win.getCurPage();
         if (typeof win.curPage === "number") return win.curPage;
         if (typeof win.cur === "number") return win.cur;
         return curPageTracked;
@@ -86,12 +97,87 @@ export default function PreviewIframeContainer({
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", backgroundColor: "#0f172a" }}>
+      {/* Top Floating Preview Notice Bar (Only shown in preview mode) */}
+      {isPreview ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 42,
+            backgroundColor: "#18181b",
+            borderBottom: "1px solid #3f3f46",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 1rem",
+            zIndex: 9999,
+            fontSize: "0.85rem",
+            color: "#f4f4f5",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span
+              style={{
+                backgroundColor: "#fef3c7",
+                color: "#b45309",
+                fontWeight: 800,
+                fontSize: "0.72rem",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                letterSpacing: "0.5px",
+                textTransform: "uppercase",
+              }}
+            >
+              Free Preview (8 Pages)
+            </span>
+            <span style={{ color: "#a1a1aa", fontSize: "0.82rem" }}>
+              — {title}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <Link
+              href={`/product/${bookSlug}`}
+              style={{
+                backgroundColor: "#c5a059",
+                color: "#18181b",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                padding: "4px 12px",
+                borderRadius: "6px",
+                textDecoration: "none",
+                transition: "background 0.2s",
+              }}
+            >
+              ⚡ Unlock Full eBook (INR {bookPrice.toFixed(2)})
+            </Link>
+            <Link
+              href={`/product/${bookSlug}`}
+              style={{
+                color: "#a1a1aa",
+                fontSize: "0.8rem",
+                textDecoration: "none",
+              }}
+            >
+              ✕ Exit
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <iframe
         ref={iframeRef}
         src={iframeSrc}
         title={title}
         onLoad={handleIframeLoad}
-        style={{ width: "100%", height: "100%", border: "none" }}
+        style={{
+          width: "100%",
+          height: isPreview ? "calc(100% - 42px)" : "100%",
+          marginTop: isPreview ? 42 : 0,
+          border: "none",
+        }}
       />
 
       {/* 8-Page Preview Complete Modal Overlay */}
@@ -184,7 +270,8 @@ export default function PreviewIframeContainer({
               onClick={() => {
                 setShowModal(false);
                 if (iframeRef.current?.contentWindow) {
-                  (iframeRef.current.contentWindow as any).goTo?.(8);
+                  const win = iframeRef.current.contentWindow as any;
+                  if (typeof win.goTo === "function") win.goTo(8);
                 }
               }}
               style={{

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 
 const ADMIN_PASSWORD = "VSB95@veeerbooks.in";
@@ -566,6 +567,26 @@ export default function AdminPage() {
           <button className="btn btn-outline btn-sm" onClick={() => { void loadBooks(); void loadBundles(); void loadCoupons(); }} disabled={booksLoading} style={{ color: "#0f172a", borderColor: "#cbd5e1", backgroundColor: "#ffffff" }}>
             {booksLoading ? "Refreshing..." : "🔄 Refresh Catalogue"}
           </button>
+        </div>
+
+        {/* ─── Publishing Marketplace Hub Banner ─── */}
+        <div style={{ backgroundColor: "#fef3c7", border: "1.5px solid #fde047", padding: "1.25rem 1.5rem", borderRadius: "12px", marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <h3 style={{ color: "#92400e", margin: "0 0 0.25rem 0", fontSize: "1.1rem", fontWeight: 700 }}>
+              🚀 Multi-Author Publishing Marketplace Active
+            </h3>
+            <p style={{ color: "#78350f", margin: 0, fontSize: "0.9rem" }}>
+              Review author submissions, convert manuscripts into interactive readers, and manage platform royalties.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <Link href="/admin/publishing" className="btn btn-sm" style={{ backgroundColor: "#b45309", color: "#ffffff", fontWeight: 700 }}>
+              Editorial Publishing Queue →
+            </Link>
+            <Link href="/admin/publishing/sales" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
+              Marketplace Sales
+            </Link>
+          </div>
         </div>
 
         {/* ─── Metrics Cards ─── */}

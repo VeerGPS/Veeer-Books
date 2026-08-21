@@ -9,7 +9,7 @@ import { useModal } from "@/contexts/ModalContext";
 import BundleHeaderBanner from "./BundleHeaderBanner";
 
 export default function Header() {
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, isAuthor, logout } = useAuth();
   const { items } = useCart();
   const { show } = useModal();
   const [navOpen, setNavOpen] = useState(false);
@@ -17,7 +17,7 @@ export default function Header() {
   const close = () => setNavOpen(false);
 
   return (
-    <header style={{ position: "relative" }}>
+    <header style={{ position: "relative", width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
       <BundleHeaderBanner />
       <div className="container">
         <nav>
@@ -60,6 +60,21 @@ export default function Header() {
                   <Link href="/library" onClick={close}>
                     My Library
                   </Link>
+                  {isAuthor && (
+                    <Link
+                      href="/author/dashboard"
+                      onClick={close}
+                      style={{
+                        color: "var(--accent-dark)",
+                        fontWeight: 700,
+                        backgroundColor: "#fef3c7",
+                        padding: "4px 10px",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      Author Hub
+                    </Link>
+                  )}
                   <button
                     className="btn btn-outline btn-sm"
                     onClick={() => {

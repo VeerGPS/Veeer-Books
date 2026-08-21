@@ -34,7 +34,10 @@ export default async function DynamicReaderPage({
   const book = await getBookBySlugFromDB(params.slug);
   if (!book) notFound();
 
-  const isPreview = searchParams?.preview === "true";
+  const isPreview =
+    searchParams?.preview === "true" ||
+    searchParams?.preview === "1" ||
+    searchParams?.preview === "yes";
 
   // Determine reader source URL
   let readerSrc = book.reader;
