@@ -90,6 +90,11 @@ export default function AuthorDashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
+      if (res.status === 401 || json?.authenticated === false) {
+        localStorage.removeItem("auth_token");
+        await refreshAuthorStatus();
+        return;
+      }
       if (res.ok) {
         setData(json);
         if (json.profile) {

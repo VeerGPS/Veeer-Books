@@ -39,6 +39,11 @@ export default function AuthorSetupPage() {
       })
         .then((res) => res.json())
         .then((data) => {
+          if (data?.authenticated === false) {
+            localStorage.removeItem("auth_token");
+            refreshAuthorStatus();
+            return;
+          }
           if (data?.profile) {
             setHasExistingProfile(true);
             setForm({
@@ -60,7 +65,7 @@ export default function AuthorSetupPage() {
     } else {
       setLoading(false);
     }
-  }, [isLoggedIn, token, isReady]);
+  }, [isLoggedIn, token, isReady, refreshAuthorStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

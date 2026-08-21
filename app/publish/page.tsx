@@ -27,6 +27,11 @@ export default function PublishLandingPage() {
       })
         .then((res) => res.json())
         .then((data) => {
+          if (data?.authenticated === false) {
+            localStorage.removeItem("auth_token");
+            setHasProfile(false);
+            return;
+          }
           setHasProfile(Boolean(data?.profile));
         })
         .catch(() => setHasProfile(false))

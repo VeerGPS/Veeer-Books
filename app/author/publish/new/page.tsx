@@ -71,6 +71,11 @@ export default function NewBookSubmissionWizard() {
       })
         .then((res) => res.json())
         .then((data) => {
+          if (data?.authenticated === false) {
+            localStorage.removeItem("auth_token");
+            router.push("/publish");
+            return;
+          }
           if (!data?.profile) {
             router.push("/author/setup");
           } else {
@@ -400,7 +405,7 @@ export default function NewBookSubmissionWizard() {
               <div style={{ backgroundColor: "#fafaf9", border: "2px dashed var(--border)", padding: "1.75rem", borderRadius: "12px", marginBottom: "1.75rem" }}>
                 <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 0.5rem 0" }}>📄 Manuscript Document *</h3>
                 <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-                  Accepted formats: <strong>PDF (.pdf), Word (.docx, .doc), EPUB (.epub), Plain Text (.txt, .rtf)</strong>. Max file size: 50MB.
+                  Accepted formats: <strong>PDF (.pdf), Word (.docx, .doc), EPUB (.epub), Plain Text (.txt, .rtf)</strong>. High-resolution files supported with no file size limit.
                 </p>
                 <input
                   type="file"

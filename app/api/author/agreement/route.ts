@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import { AuthorProfile, AgreementAcceptance } from "@/models";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getOptionalAuth } from "@/lib/auth";
 import {
   getActivePublishingAgreement,
   getAuthorAgreementStatus,
@@ -12,12 +12,17 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  const auth = getOptionalAuth(req);
+  if (!auth) {
+    return NextResponse.json(
+      { hasAccepted: false, acceptedRecord: null, activeAgreement: null, authenticated: false },
+      { status: 200 }
+    );
+  }
 
   try {
     const status = await getAuthorAgreementStatus(auth.userId);
-    return NextResponse.json(status);
+    return NextResponse.json({ ...status, authenticated: true });
   } catch (error) {
     console.error("GET /api/author/agreement error:", error);
     return NextResponse.json(

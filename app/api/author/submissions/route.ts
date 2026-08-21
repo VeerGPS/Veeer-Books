@@ -6,7 +6,7 @@ import {
   BookSubmissionRevision,
   User,
 } from "@/models";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getOptionalAuth } from "@/lib/auth";
 import {
   saveSecureFile,
   isAllowedManuscript,
@@ -29,8 +29,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  const auth = getOptionalAuth(req);
+  if (!auth) {
+    return NextResponse.json({ submissions: [], authenticated: false }, { status: 200 });
+  }
 
   try {
     await connectDB();
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ submissions });
+    return NextResponse.json({ submissions, authenticated: true });
   } catch (error) {
     console.error("GET /api/author/submissions error:", error);
     return NextResponse.json(

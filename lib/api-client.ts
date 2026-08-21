@@ -28,6 +28,10 @@ async function call(path: string, init: FetchInit = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("purchased_books");
+    }
     const err = new Error(data.error || `Request failed (${res.status})`);
     (err as Error & { status?: number }).status = res.status;
     throw err;

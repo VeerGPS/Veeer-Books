@@ -6,7 +6,6 @@ export const ADMIN_PASSWORD =
 
 export const ADMIN_NOTIFICATION_EMAIL =
   process.env.ADMIN_NOTIFICATION_EMAIL?.trim() ||
-  process.env.EMAIL_USER?.trim() ||
   "veeersukhadiyabooks95@gmail.com";
 
 export function isAdminPasswordValid(password: string | null | undefined): boolean {

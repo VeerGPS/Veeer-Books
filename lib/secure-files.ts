@@ -7,7 +7,7 @@ export { calculateSubmissionCompleteness } from "@/lib/completeness";
 export const UPLOAD_ROOT =
   process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
-export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+export const MAX_FILE_SIZE_BYTES = 2048 * 1024 * 1024; // 2GB buffer ceiling
 
 export const ALLOWED_MANUSCRIPT_EXTENSIONS = [
   ".pdf",
@@ -49,10 +49,6 @@ export async function saveSecureFile({
   mimeType: string;
   sizeBytes: number;
 }> {
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`File "${file.name}" exceeds the maximum allowed size of 50MB.`);
-  }
-
   const rawExt = path.extname(file.name || "").toLowerCase();
   const safeExt = rawExt && rawExt.length <= 8 ? rawExt : ".bin";
   const safePrefix = prefix.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 40);

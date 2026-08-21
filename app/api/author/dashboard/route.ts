@@ -7,22 +7,24 @@ import {
   AuthorRevenueLedger,
   Notification,
 } from "@/models";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getOptionalAuth } from "@/lib/auth";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { getAuthorAgreementStatus } from "@/lib/publishing-agreement";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  const auth = getOptionalAuth(req);
+  if (!auth) {
+    return NextResponse.json({ profile: null, hasProfile: false, authenticated: false }, { status: 200 });
+  }
 
   try {
     await connectDB();
 
     const profile = await AuthorProfile.findOne({ userId: auth.userId }).lean();
     if (!profile) {
-      return NextResponse.json({ profile: null, hasProfile: false });
+      return NextResponse.json({ profile: null, hasProfile: false, authenticated: true });
     }
 
     const settings = await getPlatformSettings();

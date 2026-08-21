@@ -46,3 +46,25 @@ export function requireAuth(
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 }
+
+/**
+ * Extract & verify the Bearer token optionally.
+ * Returns `{ userId }` on valid token, or `null` if absent/invalid/expired.
+ */
+export function getOptionalAuth(
+  req: NextRequest
+): { userId: string } | null {
+  const header = req.headers.get("authorization");
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const decoded = verifyToken(token);
+    return { userId: decoded.id };
+  } catch {
+    return null;
+  }
+}

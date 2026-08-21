@@ -57,6 +57,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
+
+        // Check if token was expired/unauthenticated
+        if (data?.authenticated === false) {
+          localStorage.removeItem("auth_token");
+          setState((prev) => ({
+            ...prev,
+            token: null,
+            isAuthor: false,
+            authorStatus: null,
+            authorProfile: null,
+          }));
+          return;
+        }
+
         if (data?.profile && data.profile.status === "active") {
           setState((prev) => ({
             ...prev,
@@ -74,7 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }));
           return;
         }
+      } else if (res.status === 401) {
+        localStorage.removeItem("auth_token");
+        setState((prev) => ({
+          ...prev,
+          token: null,
+          isAuthor: false,
+          authorStatus: null,
+          authorProfile: null,
+        }));
+        return;
       }
+
       setState((prev) => ({
         ...prev,
         isAuthor: false,

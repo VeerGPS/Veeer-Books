@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import { AuthorProfile, User } from "@/models";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getOptionalAuth } from "@/lib/auth";
 import { notifyAdminNewAuthor } from "@/lib/email-service";
 import { createInAppNotification } from "@/lib/notifications";
 import { logPublishingAudit } from "@/lib/audit";
@@ -17,13 +17,15 @@ function generateSlug(text: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  const auth = getOptionalAuth(req);
+  if (!auth) {
+    return NextResponse.json({ profile: null, authenticated: false }, { status: 200 });
+  }
 
   try {
     await connectDB();
     const profile = await AuthorProfile.findOne({ userId: auth.userId }).lean();
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile, authenticated: true });
   } catch (error) {
     console.error("GET /api/author/profile error:", error);
     return NextResponse.json(
@@ -156,6 +158,11 @@ export async function POST(req: NextRequest) {
       action: "AUTHOR_PROFILE_UPDATED",
       notes: `Author profile updated for: "${profile.penName}"`,
     });
+
+    // Send admin notification email for profile update
+    notifyAdminNewAuthor(profile.toObject(), true).catch((err) =>
+      console.error("Admin author profile update email error:", err)
+    );
 
     return NextResponse.json({
       profile,

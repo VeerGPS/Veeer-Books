@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
+import path from "path";
+import fs from "fs";
 import { connectDB } from "@/lib/mongoose";
-import { EmailEvent, IAuthorProfile, IBookSubmission } from "@/models";
+import { EmailEvent, IAuthorProfile, IBookSubmission, AuthorProfile, User } from "@/models";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -146,6 +148,7 @@ export async function sendIdempotentEmail({
   subject,
   html,
   text,
+  attachments,
   authorId,
   submissionId,
   bookId,
@@ -156,6 +159,7 @@ export async function sendIdempotentEmail({
   subject: string;
   html: string;
   text: string;
+  attachments?: { filename: string; path?: string; content?: Buffer | string; contentType?: string }[];
   authorId?: any;
   submissionId?: any;
   bookId?: number;
@@ -185,13 +189,17 @@ export async function sendIdempotentEmail({
 
     try {
       const transporter = await createTransporter();
-      const mailOptions = {
+      const mailOptions: any = {
         from: `"Veeer Sukhadiya Books" <${process.env.EMAIL_USER ?? "noreply@veeerbooks.in"}>`,
         to: recipient,
         subject,
         html,
         text,
       };
+
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments;
+      }
 
       const info = await transporter.sendMail(mailOptions);
       eventRecord.status = "sent";
@@ -223,76 +231,88 @@ export async function sendIdempotentEmail({
 // ─── HIGH-LEVEL NOTIFICATION DISPATCHERS ────────────────────────────────────
 
 /** Event A: New Author Registered */
-export async function notifyAdminNewAuthor(author: IAuthorProfile) {
-  const settings = await getPlatformSettings();
-  const recipient = settings.adminNotificationEmail || process.env.EMAIL_USER || "veeersukhadiyabooks95@gmail.com";
+export async function notifyAdminNewAuthor(author: IAuthorProfile, isUpdate = false) {
+  const recipient = "veeersukhadiyabooks95@gmail.com";
   const baseUrl = getBaseUrl();
-  const eventId = `author_reg_${author._id.toString()}`;
+  const eventId = `author_${isUpdate ? "update" : "reg"}_${author._id.toString()}_${Date.now()}`;
+
+  const socialLinksFormatted = [];
+  if (author.socialLinks?.twitter) socialLinksFormatted.push(`Twitter/X: ${author.socialLinks.twitter}`);
+  if (author.socialLinks?.instagram) socialLinksFormatted.push(`Instagram: ${author.socialLinks.instagram}`);
+  if (author.socialLinks?.linkedin) socialLinksFormatted.push(`LinkedIn: ${author.socialLinks.linkedin}`);
 
   const rows = [
-    { label: "Author Full Name", value: author.fullName },
-    { label: "Pen Name", value: author.penName },
-    { label: "Email Address", value: author.email },
-    { label: "Author Type", value: author.authorType },
-    { label: "Author ID", value: author._id.toString() },
-    { label: "Registered At", value: new Date(author.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
-    { label: "Profile Status", value: author.status.toUpperCase() },
+    { label: "Author Pen Name", value: `<strong>${author.penName}</strong>` },
+    { label: "Author Full Legal Name", value: author.fullName },
+    { label: "Email Address", value: `<a href="mailto:${author.email}">${author.email}</a>` },
+    { label: "Phone Number", value: author.phone || "Not provided" },
+    { label: "Country / Region", value: author.country || "India" },
+    { label: "Author Classification", value: author.authorType || "Individual Author" },
+    { label: "Website", value: author.website ? `<a href="${author.website}">${author.website}</a>` : "Not provided" },
+    { label: "Social Media", value: socialLinksFormatted.length ? socialLinksFormatted.join("<br>") : "None" },
+    { label: "Biography", value: author.biography ? author.biography.replace(/\n/g, "<br>") : "None provided" },
+    { label: "Bank Settlement Info", value: author.paymentSettlementInfo?.accountNumber ? `Account: ${author.paymentSettlementInfo.accountNumber} | IFSC: ${author.paymentSettlementInfo.ifscCode || 'N/A'} | Bank: ${author.paymentSettlementInfo.bankName || 'N/A'}` : "Not configured yet" },
+    { label: "Author Profile URL", value: `<a href="${baseUrl}/author/${author.slug}">${baseUrl}/author/${author.slug}</a>` },
+    { label: "Registered Timestamp", value: new Date(author.createdAt || Date.now()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
+    { label: "Profile Status", value: "<span style='color: #15803d; font-weight: 700;'>ACTIVE AUTHOR ✓</span>" },
   ];
 
   const buttons = [
-    { label: "View Public Profile", url: `${baseUrl}/author/${author.slug}`, isPrimary: true },
-    { label: "Open Publishing Hub", url: `${baseUrl}/admin/publishing` },
+    { label: "👤 View Public Author Profile", url: `${baseUrl}/author/${author.slug}`, isPrimary: true },
+    { label: "🚀 Open Publishing Hub", url: `${baseUrl}/admin/publishing`, isPrimary: false },
   ];
 
   const html = renderEmailTemplate({
-    headline: "New Author Registered",
-    badgeText: "🎉 New Author Account",
+    headline: isUpdate ? `Author Profile Updated: ${author.penName}` : `New Author Registered: ${author.penName}`,
+    badgeText: isUpdate ? "📝 Author Profile Updated" : "🎉 New Author Account",
     badgeBg: "#dcfce7",
     badgeColor: "#15803d",
-    intro: "A new author has registered an author profile on the Veeer Sukhadiya Books publishing platform.",
+    intro: `Hello Veeer Sukhadiya Books Team,<br><br>Author <strong>${author.penName}</strong> (${author.fullName}) has ${isUpdate ? "updated their author profile" : "successfully registered a new author profile"} on the platform. All details are below:`,
     rows,
     buttons,
   });
 
   return sendIdempotentEmail({
     eventId,
-    eventType: "NEW_AUTHOR_REGISTERED",
+    eventType: isUpdate ? "AUTHOR_PROFILE_UPDATED" : "NEW_AUTHOR_REGISTERED",
     recipient,
-    subject: "🎉 New Author Registered | Veeer Sukhadiya Books",
+    subject: isUpdate ? `📝 Author Profile Updated: ${author.penName} (${author.email})` : `🎉 New Author Registered: ${author.penName} (${author.fullName})`,
     html,
-    text: `New Author Registered: ${author.fullName} (${author.penName}) - ${author.email}. Review at ${baseUrl}/admin/publishing`,
+    text: `Author ${author.penName} (${author.fullName}) - Email: ${author.email}, Phone: ${author.phone || "N/A"}. Review at ${baseUrl}/admin/publishing`,
     authorId: author._id,
   });
 }
 
 /** Event B: Book Details 100% Complete */
 export async function notifyAdminBookDetailsCompleted(submission: IBookSubmission) {
-  const settings = await getPlatformSettings();
-  const recipient = settings.adminNotificationEmail || process.env.EMAIL_USER || "veeersukhadiyabooks95@gmail.com";
+  const recipient = "veeersukhadiyabooks95@gmail.com";
   const baseUrl = getBaseUrl();
-  const eventId = `book_details_100_${submission._id.toString()}_rev${submission.currentRevision || 1}`;
+  const eventId = `book_details_100_${submission._id.toString()}_rev${submission.currentRevision || 1}_${Date.now()}`;
 
   const rows = [
-    { label: "Book Title", value: submission.title },
+    { label: "Book Title", value: `<strong>${submission.title}</strong>${submission.subtitle ? ` (${submission.subtitle})` : ""}` },
     { label: "Author / Pen Name", value: submission.penName },
-    { label: "Category", value: submission.category },
-    { label: "Language", value: submission.language },
-    { label: "Desired Price", value: `₹${submission.desiredPrice}` },
-    { label: "Submission Code", value: submission.submissionId },
-    { label: "Completeness", value: "100% Complete ✓" },
-    { label: "Status", value: "Ready for Author Submission" },
+    { label: "Category / Genre", value: `${submission.category}${submission.subcategory ? ` > ${submission.subcategory}` : ""}` },
+    { label: "Language", value: submission.language || "English" },
+    { label: "Target Audience", value: submission.intendedAudience || "General Readers" },
+    { label: "Synopsis / Description", value: submission.description ? submission.description.replace(/\n/g, "<br>") : "None" },
+    { label: "Requested Price", value: `₹${submission.desiredPrice}` },
+    { label: "Submission Code", value: `<code>${submission.submissionId}</code>` },
+    { label: "Completeness", value: "<span style='color: #15803d; font-weight: 700;'>100% Complete ✓ (Ready for Submission)</span>" },
+    { label: "Manuscript File", value: submission.manuscriptFile?.originalName || "Uploaded" },
+    { label: "Cover Artwork", value: submission.coverFile?.originalName || "Uploaded" },
   ];
 
   const buttons = [
-    { label: "View Submission", url: `${baseUrl}/admin/publishing/${submission._id.toString()}`, isPrimary: true },
+    { label: "Review Submission in Admin", url: `${baseUrl}/admin/publishing/${submission._id.toString()}`, isPrimary: true },
   ];
 
   const html = renderEmailTemplate({
-    headline: `Book Details Completed: ${submission.title}`,
+    headline: `Book Details 100% Complete: ${submission.title}`,
     badgeText: "📚 Details 100% Complete",
     badgeBg: "#e0f2fe",
     badgeColor: "#0369a1",
-    intro: "An author has completed all required manuscript, cover, pricing, and rights details (100% complete). The book is ready for submission.",
+    intro: `Author <strong>${submission.penName}</strong> has completed 100% of the required details for <strong>"${submission.title}"</strong> (manuscript, cover, pricing, metadata, declarations).`,
     rows,
     buttons,
   });
@@ -301,7 +321,7 @@ export async function notifyAdminBookDetailsCompleted(submission: IBookSubmissio
     eventId,
     eventType: "BOOK_DETAILS_COMPLETED",
     recipient,
-    subject: `📚 Book Details Completed | Ready for Submission | Veeer Sukhadiya Books`,
+    subject: `📚 Book Details 100% Complete: "${submission.title}" by ${submission.penName} (ID: ${submission.submissionId})`,
     html,
     text: `Book Details Completed (100%): "${submission.title}" by ${submission.penName}. Submission ID: ${submission.submissionId}.`,
     authorId: submission.authorId,
@@ -319,24 +339,24 @@ export async function notifyAdminAgreementAccepted(
     submissionId?: string;
   }
 ) {
-  const settings = await getPlatformSettings();
-  const recipient = settings.adminNotificationEmail || process.env.EMAIL_USER || "veeersukhadiyabooks95@gmail.com";
+  const recipient = "veeersukhadiyabooks95@gmail.com";
   const baseUrl = getBaseUrl();
-  const eventId = `agreement_acc_${author._id.toString()}_${acceptance.agreementVersion.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  const eventId = `agreement_acc_${author._id.toString()}_${acceptance.agreementVersion.replace(/[^a-zA-Z0-9]/g, "_")}_${Date.now()}`;
 
   const rows = [
-    { label: "Author Full Name", value: author.fullName },
-    { label: "Pen Name", value: author.penName },
-    { label: "Email Address", value: author.email },
-    { label: "Agreement Version", value: acceptance.agreementVersion },
-    { label: "Acceptance Type", value: acceptance.acceptanceType === "submission_workflow" ? "Book Submission Workflow" : "Author Dashboard (Standalone)" },
+    { label: "Author Pen Name", value: `<strong>${author.penName}</strong>` },
+    { label: "Author Full Legal Name", value: author.fullName },
+    { label: "Email Address", value: `<a href="mailto:${author.email}">${author.email}</a>` },
+    { label: "Phone Number", value: author.phone || "Not specified" },
+    { label: "Agreement Version", value: `<code>${acceptance.agreementVersion}</code>` },
+    { label: "Acceptance Workflow", value: acceptance.acceptanceType === "submission_workflow" ? "Book Submission Workflow" : "Author Dashboard (Direct Acceptance)" },
     { label: "Accepted Timestamp", value: new Date(acceptance.acceptedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
-    { label: "Status", value: "AGREEMENT ACCEPTED & IMMUTABLE" },
+    { label: "Legal Status", value: "<span style='color: #15803d; font-weight: 700;'>AGREEMENT ACCEPTED &amp; IMMUTABLY RECORDED ✓</span>" },
   ];
 
   const buttons = [
-    { label: "View Author Profile", url: `${baseUrl}/author/${author.slug}`, isPrimary: true },
-    { label: "Open Publishing Hub", url: `${baseUrl}/admin/publishing` },
+    { label: "👤 View Author Profile", url: `${baseUrl}/author/${author.slug}`, isPrimary: true },
+    { label: "🚀 Open Publishing Hub", url: `${baseUrl}/admin/publishing`, isPrimary: false },
   ];
 
   const html = renderEmailTemplate({
@@ -344,7 +364,7 @@ export async function notifyAdminAgreementAccepted(
     badgeText: "📜 Agreement Accepted",
     badgeBg: "#e0f2fe",
     badgeColor: "#0369a1",
-    intro: `Author ${author.penName} has officially accepted the Veeer Sukhadiya Books Digital Publishing Agreement (${acceptance.agreementVersion}).`,
+    intro: `Author <strong>${author.penName}</strong> (${author.fullName}) has officially accepted the Veeer Sukhadiya Books Digital Publishing Agreement (${acceptance.agreementVersion}).`,
     rows,
     buttons,
   });
@@ -353,7 +373,7 @@ export async function notifyAdminAgreementAccepted(
     eventId,
     eventType: "AGREEMENT_ACCEPTED",
     recipient,
-    subject: `📜 Publishing Agreement Accepted | ${author.penName} (${acceptance.agreementVersion})`,
+    subject: `📜 Publishing Agreement Accepted: ${author.penName} (${acceptance.agreementVersion})`,
     html,
     text: `Author ${author.penName} (${author.email}) accepted publishing agreement ${acceptance.agreementVersion} at ${new Date(acceptance.acceptedAt).toISOString()}.`,
     authorId: author._id,
@@ -362,84 +382,156 @@ export async function notifyAdminAgreementAccepted(
 
 /** Event C: Book Submitted for Publication */
 export async function notifyAdminBookSubmitted(submission: IBookSubmission) {
-  const settings = await getPlatformSettings();
-  const recipient = settings.adminNotificationEmail || process.env.EMAIL_USER || "veeersukhadiyabooks95@gmail.com";
+  const recipient = "veeersukhadiyabooks95@gmail.com";
   const baseUrl = getBaseUrl();
-  const eventId = `book_sub_${submission._id.toString()}_rev${submission.currentRevision || 1}`;
+  const eventId = `book_sub_${submission._id.toString()}_rev${submission.currentRevision || 1}_${Date.now()}`;
 
-  const rows = [
-    { label: "Author", value: submission.penName },
-    { label: "Pen Name", value: submission.penName },
-    { label: "Book", value: submission.title },
-    { label: "Category", value: submission.category },
-    { label: "Language", value: submission.language },
-    { label: "Requested Price", value: `₹${submission.desiredPrice}` },
-    { label: "Submission ID", value: submission.submissionId },
-    { label: "Status", value: "SUBMITTED" },
-  ];
+  let authorInfo: any = null;
+  try {
+    if (submission.authorId) {
+      authorInfo = await AuthorProfile.findById(submission.authorId).lean();
+    }
+    if (!authorInfo && submission.userId) {
+      authorInfo = await AuthorProfile.findOne({ userId: submission.userId }).lean();
+    }
+  } catch {}
 
+  const authorName = authorInfo?.fullName || submission.penName;
+  const authorPenName = submission.penName || authorInfo?.penName || "Author";
+  const authorEmail = authorInfo?.email || "Not specified";
+  const authorPhone = authorInfo?.phone || "Not specified";
+  const authorCountry = authorInfo?.country || "India";
+
+  const msSizeMB = submission.manuscriptFile?.sizeBytes
+    ? `${(submission.manuscriptFile.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+    : "Unknown size";
+  const covSizeMB = submission.coverFile?.sizeBytes
+    ? `${(submission.coverFile.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+    : "Unknown size";
+
+  const manuscriptUrl = submission.manuscriptFile?.storagePath
+    ? `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
+    : "";
+  const coverUrl = submission.coverFile?.storagePath
+    ? `${baseUrl}/api/files/secure/${submission.coverFile.storagePath}`
+    : "";
   const adminReviewUrl = `${baseUrl}/admin/publishing/${submission._id.toString()}`;
 
-  const buttons = [
-    { label: "Review Submission", url: adminReviewUrl, isPrimary: true },
-    { label: "Admin Publishing Hub", url: `${baseUrl}/admin/publishing` },
+  const rows = [
+    { label: "Book Title", value: `<strong>${submission.title}</strong>${submission.subtitle ? ` (${submission.subtitle})` : ""}` },
+    { label: "Author Pen Name", value: authorPenName },
+    { label: "Author Full Name", value: authorName },
+    { label: "Author Email", value: `<a href="mailto:${authorEmail}">${authorEmail}</a>` },
+    { label: "Author Phone", value: authorPhone },
+    { label: "Author Country", value: authorCountry },
+    { label: "Category / Genre", value: `${submission.category}${submission.subcategory ? ` &gt; ${submission.subcategory}` : ""}` },
+    { label: "Language", value: submission.language || "English" },
+    { label: "Target Audience", value: submission.intendedAudience || "General Readers" },
+    { label: "Synopsis / Description", value: submission.description ? submission.description.replace(/\n/g, "<br>") : "No description provided" },
+    { label: "Tags / Keywords", value: submission.tags && submission.tags.length ? submission.tags.join(", ") : "None" },
+    { label: "Requested Price", value: `<strong>₹${submission.desiredPrice}</strong> (Actual: ₹${submission.actualPrice || submission.desiredPrice})` },
+    { label: "Submission Code", value: `<code>${submission.submissionId}</code>` },
+    { label: "Status", value: "<span style='color: #b45309; font-weight: 700;'>SUBMITTED (Ready for Editorial Review)</span>" },
+    { label: "Publishing Agreement", value: `${submission.agreementVersion || "VSB-DPA-1.0"} (Accepted &amp; Confirmed ✓)` },
+    { label: "Legal &amp; Rights", value: "100% Confirmed &amp; Accepted by Author ✓" },
+    { label: "Manuscript File", value: submission.manuscriptFile?.originalName ? `${submission.manuscriptFile.originalName} (${msSizeMB})` : "Not uploaded" },
+    { label: "Cover Artwork", value: submission.coverFile?.originalName ? `${submission.coverFile.originalName} (${covSizeMB})` : "Not uploaded" },
+    { label: "Submitted Timestamp", value: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
   ];
 
+  const buttons: { label: string; url: string; isPrimary?: boolean }[] = [
+    { label: "🚀 Review Submission in Admin", url: adminReviewUrl, isPrimary: true },
+  ];
+
+  if (manuscriptUrl) {
+    buttons.push({ label: "📄 Download Manuscript", url: manuscriptUrl, isPrimary: false });
+  }
+  if (coverUrl) {
+    buttons.push({ label: "🎨 Download Cover", url: coverUrl, isPrimary: false });
+  }
+
   const html = renderEmailTemplate({
-    headline: "New Book Submission Ready for Review",
-    badgeText: "📚 New Book Submission",
+    headline: `New Book Submitted: ${submission.title}`,
+    badgeText: "📚 Book Ready for Publication Review",
     badgeBg: "#fef3c7",
     badgeColor: "#b45309",
-    intro: `Hello,<br><br>A new author has completed and submitted a book for publication through Veeer Sukhadiya Books.<br><br>The author has completed the required submission information and accepted the applicable publishing agreement. Please log in to the Admin Publishing Dashboard to review the manuscript, cover, metadata and submission details.`,
+    intro: `Hello Veeer Sukhadiya Books Team,<br><br>Author <strong>${authorPenName}</strong> has just submitted the book <strong>"${submission.title}"</strong> for publication review. All metadata, rights confirmations, manuscript, and cover art are ready below.`,
     rows,
     buttons,
   });
 
-  const text = `Hello,
+  const text = `NEW BOOK SUBMISSION FOR PUBLICATION REVIEW
 
-A new author has completed and submitted a book for publication through Veeer Sukhadiya Books.
+Book Title: ${submission.title} ${submission.subtitle ? `(${submission.subtitle})` : ""}
+Author Pen Name: ${authorPenName}
+Author Legal Name: ${authorName}
+Author Email: ${authorEmail}
+Author Phone: ${authorPhone}
+Category: ${submission.category} ${submission.subcategory ? `> ${submission.subcategory}` : ""}
+Language: ${submission.language}
+Requested Price: INR ${submission.desiredPrice}
+Submission ID: ${submission.submissionId}
+Agreement: ${submission.agreementVersion || "VSB-DPA-1.0"}
 
-Author:
-${submission.penName}
+Description:
+${submission.description}
 
-Pen Name:
-${submission.penName}
+Manuscript: ${submission.manuscriptFile?.originalName || "N/A"} (${msSizeMB})
+Download Manuscript: ${manuscriptUrl || "N/A"}
 
-Book:
-${submission.title}
+Cover Artwork: ${submission.coverFile?.originalName || "N/A"} (${covSizeMB})
+Download Cover: ${coverUrl || "N/A"}
 
-Category:
-${submission.category}
-
-Language:
-${submission.language}
-
-Requested Price:
-₹${submission.desiredPrice}
-
-Submission ID:
-${submission.submissionId}
-
-Status:
-SUBMITTED
-
-The author has completed the required submission information and accepted the applicable publishing agreement.
-
-Please log in to the Admin Publishing Dashboard to review the manuscript, cover, metadata and submission details.
-
-Review Submission:
+Review in Admin Dashboard:
 ${adminReviewUrl}
+`;
 
-Veeer Sukhadiya Books
-Digital Publishing Marketplace`;
+  // Attach files directly if they exist and are under 25MB (Gmail limit)
+  const attachments: any[] = [];
+  const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+
+  if (submission.manuscriptFile?.storagePath) {
+    const msPath = path.join(uploadDir, submission.manuscriptFile.storagePath);
+    if (fs.existsSync(msPath)) {
+      try {
+        const stats = fs.statSync(msPath);
+        if (stats.size <= 25 * 1024 * 1024) {
+          attachments.push({
+            filename: submission.manuscriptFile.originalName || "Manuscript.pdf",
+            path: msPath,
+          });
+        }
+      } catch (err) {
+        console.warn("[EMAIL] Could not attach manuscript file:", err);
+      }
+    }
+  }
+
+  if (submission.coverFile?.storagePath) {
+    const covPath = path.join(uploadDir, submission.coverFile.storagePath);
+    if (fs.existsSync(covPath)) {
+      try {
+        const stats = fs.statSync(covPath);
+        if (stats.size <= 25 * 1024 * 1024) {
+          attachments.push({
+            filename: submission.coverFile.originalName || "Cover.jpg",
+            path: covPath,
+          });
+        }
+      } catch (err) {
+        console.warn("[EMAIL] Could not attach cover file:", err);
+      }
+    }
+  }
 
   return sendIdempotentEmail({
     eventId,
     eventType: "BOOK_SUBMITTED",
     recipient,
-    subject: "📚 New Book Submission Ready for Review | Veeer Sukhadiya Books",
+    subject: `📚 New Book Submission: "${submission.title}" by ${authorPenName} (ID: ${submission.submissionId})`,
     html,
     text,
+    attachments,
     authorId: submission.authorId,
     submissionId: submission._id,
   });
@@ -450,31 +542,49 @@ export async function notifyAdminBookResubmitted(
   submission: IBookSubmission,
   previousFeedback?: string
 ) {
-  const settings = await getPlatformSettings();
-  const recipient = settings.adminNotificationEmail || process.env.EMAIL_USER || "veeersukhadiyabooks95@gmail.com";
+  const recipient = "veeersukhadiyabooks95@gmail.com";
   const baseUrl = getBaseUrl();
-  const eventId = `book_resub_${submission._id.toString()}_rev${submission.currentRevision}`;
+  const eventId = `book_resub_${submission._id.toString()}_rev${submission.currentRevision}_${Date.now()}`;
+
+  const msSizeMB = submission.manuscriptFile?.sizeBytes
+    ? `${(submission.manuscriptFile.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+    : "Unknown size";
+  const covSizeMB = submission.coverFile?.sizeBytes
+    ? `${(submission.coverFile.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+    : "Unknown size";
+
+  const manuscriptUrl = submission.manuscriptFile?.storagePath
+    ? `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
+    : "";
+  const coverUrl = submission.coverFile?.storagePath
+    ? `${baseUrl}/api/files/secure/${submission.coverFile.storagePath}`
+    : "";
+  const adminReviewUrl = `${baseUrl}/admin/publishing/${submission._id.toString()}`;
 
   const rows = [
-    { label: "Book Title", value: submission.title },
+    { label: "Book Title", value: `<strong>${submission.title}</strong>` },
     { label: "Author / Pen Name", value: submission.penName },
-    { label: "Submission Code", value: submission.submissionId },
+    { label: "Submission Code", value: `<code>${submission.submissionId}</code>` },
     { label: "Revision Number", value: `Revision #${submission.currentRevision}` },
     { label: "Resubmission Date", value: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
     { label: "Previous Feedback Addressed", value: previousFeedback || "Changes submitted as requested." },
-    { label: "Status", value: "RESUBMITTED — REVIEW REQUIRED" },
+    { label: "Status", value: "<span style='color: #4338ca; font-weight: 700;'>RESUBMITTED — REVIEW REQUIRED</span>" },
+    { label: "Manuscript File", value: submission.manuscriptFile?.originalName ? `${submission.manuscriptFile.originalName} (${msSizeMB})` : "Not updated" },
+    { label: "Cover Artwork", value: submission.coverFile?.originalName ? `${submission.coverFile.originalName} (${covSizeMB})` : "Not updated" },
   ];
 
-  const buttons = [
-    { label: "Review Revision", url: `${baseUrl}/admin/publishing/${submission._id.toString()}`, isPrimary: true },
+  const buttons: { label: string; url: string; isPrimary?: boolean }[] = [
+    { label: "Review Revision in Admin", url: adminReviewUrl, isPrimary: true },
   ];
+  if (manuscriptUrl) buttons.push({ label: "📄 Download Manuscript", url: manuscriptUrl, isPrimary: false });
+  if (coverUrl) buttons.push({ label: "🎨 Download Cover", url: coverUrl, isPrimary: false });
 
   const html = renderEmailTemplate({
     headline: `Book Resubmitted: ${submission.title}`,
     badgeText: "🔄 Book Resubmitted",
     badgeBg: "#e0e7ff",
     badgeColor: "#4338ca",
-    intro: "The author has updated their submission in response to requested changes and resubmitted for review.",
+    intro: `Author <strong>${submission.penName}</strong> has updated their submission for <strong>"${submission.title}"</strong> and resubmitted for publication review.`,
     rows,
     buttons,
   });
@@ -483,9 +593,9 @@ export async function notifyAdminBookResubmitted(
     eventId,
     eventType: "BOOK_RESUBMITTED",
     recipient,
-    subject: `🔄 Book Resubmitted | ${submission.title}`,
+    subject: `🔄 Book Resubmitted: "${submission.title}" (Revision #${submission.currentRevision}) | ${submission.penName}`,
     html,
-    text: `Book Resubmitted: "${submission.title}" (Revision #${submission.currentRevision}) by ${submission.penName}.`,
+    text: `Book Resubmitted: "${submission.title}" (Revision #${submission.currentRevision}) by ${submission.penName}. Submission ID: ${submission.submissionId}. Review: ${adminReviewUrl}`,
     authorId: submission.authorId,
     submissionId: submission._id,
   });
