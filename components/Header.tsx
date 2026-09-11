@@ -49,6 +49,9 @@ export default function Header() {
               <Link href="/#collections" onClick={close}>
                 Collections
               </Link>
+              <Link href="/bundles" onClick={close}>
+                Bundles
+              </Link>
               <Link href="/#about" onClick={close}>
                 About
               </Link>
