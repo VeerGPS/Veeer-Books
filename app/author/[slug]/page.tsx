@@ -6,9 +6,9 @@ import { connectDB } from "@/lib/mongoose";
 import { AuthorProfile, BookModel } from "@/models";
 import { BOOKS } from "@/lib/books";
 import BookGrid from "@/components/BookGrid";
+import { canOptimize } from "@/lib/image";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getAuthorData(slug: string) {
   await connectDB();
@@ -179,8 +179,9 @@ export default async function PublicAuthorPage({
                 src={author.profilePhoto}
                 alt={author.penName}
                 fill
+                sizes="160px"
                 style={{ objectFit: "cover" }}
-                unoptimized
+                unoptimized={!canOptimize(author.profilePhoto)}
               />
             ) : (
               <div

@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import { BundleModel } from "@/models";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
       isActive: isActive !== false,
     });
 
+    revalidateTag("bundles");
     return NextResponse.json({ bundle, message: "Bundle offer created successfully" });
   } catch (error) {
     console.error("POST /api/admin/bundles error:", error);
@@ -101,6 +103,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Bundle not found" }, { status: 404 });
     }
 
+    revalidateTag("bundles");
     return NextResponse.json({ bundle, message: "Bundle updated successfully" });
   } catch (error) {
     console.error("PUT /api/admin/bundles error:", error);
@@ -128,6 +131,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Bundle offer not found" }, { status: 404 });
     }
 
+    revalidateTag("bundles");
     return NextResponse.json({ message: "Bundle offer deleted successfully" });
   } catch (error) {
     console.error("DELETE /api/admin/bundles error:", error);

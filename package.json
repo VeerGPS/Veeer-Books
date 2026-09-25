@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "readers:convert": "node scripts/convert_old_readers.js"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

@@ -27,16 +27,31 @@ declare global {
 const cache: MongooseCache = global._mongooseCache ?? { conn: null, promise: null };
 if (!global._mongooseCache) global._mongooseCache = cache;
 
+// When the database is unreachable we remember the failure for a short time so
+// every page request doesn't sit waiting for another connection timeout before
+// falling back to the built-in catalogue. (This was a major cause of slow pages.)
+const FAILURE_BACKOFF_MS = 30_000;
+let lastFailureAt = 0;
+
 export async function connectDB(): Promise<typeof mongoose> {
-  if (cache.conn) return cache.conn;
+  if (cache.conn && mongoose.connection.readyState === 1) return cache.conn;
 
   if (!MONGO_URI) {
     throw new Error("MONGO_URI environment variable is not configured");
   }
 
+  if (!cache.promise && Date.now() - lastFailureAt < FAILURE_BACKOFF_MS) {
+    throw new Error("[mongoose] database recently unreachable — using fallback");
+  }
+
   if (!cache.promise) {
     cache.promise = mongoose
-      .connect(MONGO_URI, { bufferCommands: false })
+      .connect(MONGO_URI, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 5000, // fail fast instead of the 30s default
+        connectTimeoutMS: 8000,
+        maxPoolSize: 10,
+      })
       .then((m) => {
         console.log("[mongoose] connected");
         return m;
@@ -44,6 +59,8 @@ export async function connectDB(): Promise<typeof mongoose> {
       .catch((err) => {
         console.error("[mongoose] connection error:", err.message);
         cache.promise = null;
+        cache.conn = null;
+        lastFailureAt = Date.now();
         throw err;
       });
   }

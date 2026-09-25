@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
+import { canOptimize } from "@/lib/image";
 
 type BookItem = {
   id: number;
@@ -220,7 +221,7 @@ export default function BundleHeaderBanner() {
                   fill
                   sizes="80px"
                   style={{ objectFit: "cover" }}
-                  unoptimized
+                  unoptimized={!canOptimize(b.cover)}
                 />
               </div>
             ))}

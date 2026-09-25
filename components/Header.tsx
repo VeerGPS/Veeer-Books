@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useModal } from "@/contexts/ModalContext";
@@ -13,12 +14,17 @@ export default function Header() {
   const { items } = useCart();
   const { show } = useModal();
   const [navOpen, setNavOpen] = useState(false);
+  const pathname = usePathname() || "/";
+
+  // The book reader is a full-screen experience: no site header there.
+  if (pathname.startsWith("/reader")) return null;
 
   const close = () => setNavOpen(false);
+  const showOffers = !pathname.startsWith("/admin") && !pathname.startsWith("/author");
 
   return (
-    <header style={{ position: "relative", width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
-      <BundleHeaderBanner />
+    <header className="site-header">
+      {showOffers ? <BundleHeaderBanner /> : null}
       <div className="container">
         <nav>
           <Link href="/" className="logo" onClick={close}>
@@ -27,6 +33,7 @@ export default function Header() {
               alt="Veeer Books Logo"
               width={36}
               height={36}
+              sizes="36px"
               priority
             />
             <span>Veeer Sukhadiya Books</span>
@@ -46,7 +53,7 @@ export default function Header() {
               <Link href="/" onClick={close}>
                 Home
               </Link>
-              <Link href="/#collections" onClick={close}>
+              <Link href="/#collection" onClick={close}>
                 Collections
               </Link>
               <Link href="/bundles" onClick={close}>

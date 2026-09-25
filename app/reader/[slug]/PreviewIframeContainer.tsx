@@ -1,290 +1,154 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { useModal } from "@/contexts/ModalContext";
+
+const PREVIEW_PAGES = 8;
 
 interface PreviewIframeProps {
   readerSrc: string;
   title: string;
   isPreview: boolean;
+  bookId: number;
   bookSlug: string;
   bookPrice: number;
 }
+
+const gold = "#c5a059";
 
 export default function PreviewIframeContainer({
   readerSrc,
   title,
   isPreview,
+  bookId,
   bookSlug,
   bookPrice,
 }: PreviewIframeProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+  const { isReady, isLoggedIn, purchasedBooks } = useAuth();
+  const { add, hasItem } = useCart();
+  const { show } = useModal();
 
+  const owned = purchasedBooks.includes(bookId);
+  const locked = !isPreview && isReady && !owned;
+
+  // Messages from the reader inside the iframe (same origin only).
   useEffect(() => {
-    const handleMsg = (e: MessageEvent) => {
-      if (e.data?.type === "PREVIEW_LIMIT_REACHED") {
-        setShowModal(true);
-      }
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || !e.data) return;
+      const d = e.data as { source?: string; type?: string };
+      if (d.type === "PREVIEW_LIMIT_REACHED") return setShowModal(true); // older readers
+      if (d.source !== "veeer-reader") return;
+      if (d.type === "preview-end" || d.type === "buy") setShowModal(true);
+      if (d.type === "close") router.push(isPreview ? `/product/${bookSlug}` : "/library");
     };
-    window.addEventListener("message", handleMsg);
-    return () => window.removeEventListener("message", handleMsg);
-  }, []);
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [router, isPreview, bookSlug]);
 
-  const handleIframeLoad = () => {
-    if (!isPreview || !iframeRef.current) return;
-
-    try {
-      const win = iframeRef.current.contentWindow as any;
-      if (!win) return;
-
-      let curPageTracked = 1;
-
-      const getCurPage = () => {
-        if (typeof win.getCurPage === "function") return win.getCurPage();
-        if (typeof win.curPage === "number") return win.curPage;
-        if (typeof win.cur === "number") return win.cur;
-        return curPageTracked;
-      };
-
-      // Intercept goTo function inside the iframe
-      if (typeof win.goTo === "function") {
-        const originalGoTo = win.goTo;
-        win.goTo = function (n: number) {
-          if (n > 8) {
-            setShowModal(true);
-            return;
-          }
-          curPageTracked = n;
-          originalGoTo(n);
-        };
-      }
-
-      // Intercept next function if present
-      if (typeof win.next === "function") {
-        const originalNext = win.next;
-        win.next = function () {
-          if (getCurPage() >= 8) {
-            setShowModal(true);
-            return;
-          }
-          originalNext();
-        };
-      }
-
-      // Intercept ArrowRight / PageDown keydown events inside the iframe
-      win.addEventListener(
-        "keydown",
-        (e: KeyboardEvent) => {
-          if (e.key === "ArrowRight" || e.key === "PageDown") {
-            if (getCurPage() >= 8) {
-              e.stopImmediatePropagation();
-              e.preventDefault();
-              setShowModal(true);
-            }
-          }
-        },
-        true
-      );
-    } catch (err) {
-      console.warn("Could not attach preview listener to iframe:", err);
-    }
+  const buy = () => {
+    if (!hasItem(bookId)) add(bookId);
+    router.push("/cart");
   };
 
-  const iframeSrc = isPreview
-    ? `${readerSrc}${readerSrc.includes("?") ? "&" : "?"}preview=1`
-    : readerSrc;
+  const sep = readerSrc.includes("?") ? "&" : "?";
+  const iframeSrc = isPreview ? `${readerSrc}${sep}preview=1&pages=${PREVIEW_PAGES}` : readerSrc;
+  const price = `₹${bookPrice.toFixed(2)}`;
+
+  // Full reading is for owners; everyone else gets the free preview.
+  if (!isPreview && !isReady) {
+    return <div style={{ position: "fixed", inset: 0, background: "#2b2b2b" }} aria-busy="true" />;
+  }
+  if (locked) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#1c1917", display: "grid", placeItems: "center", padding: "1.5rem" }}>
+        <div style={{ maxWidth: 440, width: "100%", background: "#faf8f5", borderRadius: 18, padding: "2rem", textAlign: "center", border: `2px solid ${gold}` }}>
+          <div style={{ fontSize: "2rem" }}>📖</div>
+          <h1 style={{ fontFamily: "var(--serif)", fontSize: "1.5rem", margin: "0.5rem 0" }}>{title}</h1>
+          <p style={{ color: "#5a5a5a", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+            {isLoggedIn
+              ? "This book isn’t in your library yet. Read the free preview or get the full book."
+              : "Sign in to read books from your library, or start with the free preview."}
+          </p>
+          <div style={{ display: "grid", gap: "0.7rem" }}>
+            <Link href={`/reader/${bookSlug}?preview=1`} className="btn btn-primary">
+              Read free preview ({PREVIEW_PAGES} pages)
+            </Link>
+            <button type="button" className="btn btn-outline" onClick={buy}>
+              Get the full book — {price}
+            </button>
+            {!isLoggedIn ? (
+              <button type="button" className="btn btn-outline" onClick={() => show("login")}>
+                Sign in
+              </button>
+            ) : null}
+            <Link href={`/product/${bookSlug}`} style={{ color: "#8c7647", fontSize: "0.9rem", marginTop: "0.25rem" }}>
+              ← Back to book details
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", backgroundColor: "#0f172a" }}>
-      {/* Top Floating Preview Notice Bar (Only shown in preview mode) */}
+    <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", backgroundColor: "#2b2b2b" }}>
       {isPreview ? (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 42,
-            backgroundColor: "#18181b",
-            borderBottom: "1px solid #3f3f46",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 1rem",
-            zIndex: 9999,
-            fontSize: "0.85rem",
-            color: "#f4f4f5",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span
-              style={{
-                backgroundColor: "#fef3c7",
-                color: "#b45309",
-                fontWeight: 800,
-                fontSize: "0.72rem",
-                padding: "2px 8px",
-                borderRadius: "4px",
-                letterSpacing: "0.5px",
-                textTransform: "uppercase",
-              }}
-            >
-              Free Preview (8 Pages)
-            </span>
-            <span style={{ color: "#a1a1aa", fontSize: "0.82rem" }}>
-              — {title}
-            </span>
+        <div className="preview-bar">
+          <div className="preview-bar-l">
+            <span className="preview-tag">Free preview · {PREVIEW_PAGES} pages</span>
+            <span className="preview-title">{title}</span>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <Link
-              href={`/product/${bookSlug}`}
-              style={{
-                backgroundColor: "#c5a059",
-                color: "#18181b",
-                fontWeight: 700,
-                fontSize: "0.8rem",
-                padding: "4px 12px",
-                borderRadius: "6px",
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
-            >
-              ⚡ Unlock Full eBook (INR {bookPrice.toFixed(2)})
-            </Link>
-            <Link
-              href={`/product/${bookSlug}`}
-              style={{
-                color: "#a1a1aa",
-                fontSize: "0.8rem",
-                textDecoration: "none",
-              }}
-            >
-              ✕ Exit
+          <div className="preview-bar-r">
+            <button type="button" className="preview-buy" onClick={buy}>
+              Get full book · {price}
+            </button>
+            <Link href={`/product/${bookSlug}`} className="preview-exit">
+              Exit
             </Link>
           </div>
         </div>
       ) : null}
 
       <iframe
-        ref={iframeRef}
         src={iframeSrc}
         title={title}
-        onLoad={handleIframeLoad}
-        style={{
-          width: "100%",
-          height: isPreview ? "calc(100% - 42px)" : "100%",
-          marginTop: isPreview ? 42 : 0,
-          border: "none",
-        }}
+        allow="fullscreen"
+        style={{ flex: 1, width: "100%", border: "none", display: "block" }}
       />
 
-      {/* 8-Page Preview Complete Modal Overlay */}
       {showModal ? (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(12, 10, 8, 0.85)",
-            backdropFilter: "blur(8px)",
-            zIndex: 999999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            fontFamily: "var(--sans)",
-          }}
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowModal(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(12,10,8,.8)", zIndex: 50, display: "grid", placeItems: "center", padding: "1.5rem" }}
         >
           <div
-            style={{
-              backgroundColor: "#faf8f5",
-              backgroundImage: "radial-gradient(circle at 50% 0%, #ffffff 0%, #f7f3ea 70%, #ece5d6 100%)",
-              borderRadius: "22px",
-              border: "2px solid #c5a059",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.5), 0 0 35px rgba(197, 160, 89, 0.25)",
-              maxWidth: 460,
-              width: "100%",
-              padding: "2.25rem 2rem",
-              textAlign: "center",
-              color: "#1a1a1a",
-              animation: "popupSpring 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#faf8f5", borderRadius: 20, border: `2px solid ${gold}`, maxWidth: 440, width: "100%", padding: "2rem", textAlign: "center", color: "#1a1a1a", animation: "popupSpring .25s ease-out" }}
           >
-            <div style={{ fontSize: "2.2rem", marginBottom: "0.4rem" }}>📖</div>
-            <span
-              style={{
-                display: "inline-block",
-                backgroundColor: "#fef3c7",
-                border: "1px solid #c5a059",
-                color: "#b45309",
-                padding: "3px 12px",
-                borderRadius: "16px",
-                fontSize: "0.72rem",
-                fontWeight: 800,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-                marginBottom: "0.75rem",
-              }}
-            >
-              FREE PREVIEW COMPLETE (8 PAGES)
+            <span style={{ display: "inline-block", background: "#fef3c7", color: "#b45309", border: `1px solid ${gold}`, borderRadius: 16, padding: "3px 12px", fontSize: ".72rem", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>
+              Free preview complete
             </span>
-
-            <h3
-              style={{
-                fontSize: "1.55rem",
-                fontWeight: 800,
-                color: "#1a1a1a",
-                fontFamily: "var(--serif)",
-                margin: "0 0 0.5rem 0",
-                lineHeight: 1.25,
-              }}
-            >
-              Enjoying the Story?
-            </h3>
-            <p style={{ color: "#5a5a5a", fontSize: "0.92rem", lineHeight: 1.5, marginBottom: "1.5rem" }}>
-              You have reached the end of the 8-page free preview for <strong>{title}</strong>. Unlock the complete full eBook for instant lifetime reading access.
+            <h3 style={{ fontFamily: "var(--serif)", fontSize: "1.5rem", margin: ".75rem 0 .5rem" }}>Enjoying it?</h3>
+            <p style={{ color: "#5a5a5a", lineHeight: 1.55, marginBottom: "1.5rem" }}>
+              You&apos;ve read the free preview of <strong>{title}</strong>. Get the complete book for instant, lifetime access.
             </p>
-
-            <Link
-              href={`/product/${bookSlug}`}
-              className="btn btn-primary"
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "0.9rem",
-                fontSize: "1.05rem",
-                fontWeight: 800,
-                textAlign: "center",
-                boxShadow: "0 4px 15px rgba(197, 160, 89, 0.4)",
-              }}
-            >
-              🎁 Unlock Full eBook (INR {bookPrice.toFixed(2)})
-            </Link>
-
+            <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={buy}>
+              Get the full book — {price}
+            </button>
             <button
               type="button"
-              onClick={() => {
-                setShowModal(false);
-                if (iframeRef.current?.contentWindow) {
-                  const win = iframeRef.current.contentWindow as any;
-                  if (typeof win.goTo === "function") win.goTo(8);
-                }
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#8c7647",
-                fontSize: "0.85rem",
-                marginTop: "1rem",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
+              onClick={() => setShowModal(false)}
+              style={{ background: "none", border: 0, color: "#8c7647", marginTop: "1rem", cursor: "pointer", textDecoration: "underline" }}
             >
-              Back to Page 8
+              Keep reading the preview
             </button>
           </div>
         </div>

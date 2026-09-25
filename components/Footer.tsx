@@ -25,7 +25,7 @@ export default function Footer() {
               <li><Link href="/best-sellers">Best Sellers</Link></li>
               <li><Link href="/new-arrivals">New Arrivals</Link></li>
               <li><Link href="/bundles">Bundles</Link></li>
-              <li><Link href="/#collections">All Collections</Link></li>
+              <li><Link href="/#collection">All Collections</Link></li>
             </ul>
           </div>
 

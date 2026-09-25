@@ -63,7 +63,7 @@ export default function ProductActions({ bookId, slug }: { bookId: number; slug:
 
       {/* READ FREE PREVIEW Direct Navigation Button */}
       <Link
-        href={`/reader/${slug}?preview=true`}
+        href={`/reader/${slug}?preview=1`}
         className="btn btn-outline"
         style={{
           width: "100%",
@@ -77,7 +77,7 @@ export default function ProductActions({ bookId, slug }: { bookId: number; slug:
           display: "inline-block",
         }}
       >
-        📖 READ FREE PREVIEW (Sample Pages)
+        📖 READ FREE PREVIEW (First 8 Pages)
       </Link>
     </div>
   );

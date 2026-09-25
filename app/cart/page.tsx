@@ -18,6 +18,7 @@ import { calculateDiscount } from "@/lib/coupons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useModal } from "@/contexts/ModalContext";
+import { canOptimize } from "@/lib/image";
 import {
   apiRazorpayKey,
   apiRazorpayOrder,
@@ -275,7 +276,8 @@ export default function CartPage() {
                     <div className="cart-item" key={b.id}>
                       <Image
                         src={b.cover || "/images/default-book.svg"}
-                        unoptimized
+                        sizes="70px"
+                        unoptimized={!canOptimize(b.cover)}
                         alt={b.title}
                         width={70}
                         height={98}

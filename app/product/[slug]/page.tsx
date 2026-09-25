@@ -4,10 +4,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
 import ProductActions from "./ProductActions";
-import ProductReviews from "./ProductReviews";
+import { canOptimize } from "@/lib/image";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Pre-rendered and refreshed every minute instead of hitting the database on every visit.
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return BOOKS.map((b) => ({ slug: b.slug }));
@@ -38,7 +38,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <div className="container" style={{ maxWidth: 1080, margin: "0 auto" }}>
         
         {/* Breadcrumb Navigation */}
-        <nav style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "1.5rem" }}>
+        <nav className="breadcrumb" aria-label="Breadcrumb">
           <Link href="/" style={{ color: "#8c7647", fontWeight: 600 }}>Home</Link>
           <span style={{ margin: "0 0.4rem" }}>/</span>
           <span style={{ color: "#8c7647", fontWeight: 600 }}>{book.genre}</span>
@@ -54,7 +54,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
               style={{
                 width: "100%",
                 maxWidth: 340,
-                height: 480,
+                aspectRatio: "2 / 3",
                 position: "relative",
                 borderRadius: "12px",
                 overflow: "hidden",
@@ -68,8 +68,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 alt={`${book.title} cover`}
                 fill
                 priority
+                sizes="(max-width: 640px) 90vw, 340px"
                 style={{ objectFit: "cover" }}
-                unoptimized
+                unoptimized={!canOptimize(book.cover)}
               />
             </div>
 
@@ -90,7 +91,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 ⚡ INSTANT DIGITAL EBOOK
               </span>
               <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#1a1a1a", marginTop: "0.2rem" }}>
-                Interactive In-Browser eBook Reader Access
+                Fast web reader · contents, search &amp; bookmarks
               </div>
             </div>
           </aside>
@@ -102,7 +103,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 {book.genre}
               </span>
               <span className="meta-pill">{book.pages} Pages</span>
-              <span className="meta-pill">Verified Digital Edition</span>
+              <span className="meta-pill">Instant digital access</span>
             </div>
 
             <h1 className="product-title" style={{ fontSize: "2.25rem", fontWeight: 800, color: "#1a1a1a", fontFamily: "var(--serif)", marginBottom: "0.4rem", lineHeight: 1.25 }}>
@@ -140,18 +141,18 @@ export default async function ProductPage({ params }: { params: { slug: string }
               <div style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
                 Digital Price
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginTop: "0.25rem" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem 0.75rem", marginTop: "0.25rem", flexWrap: "wrap", whiteSpace: "nowrap" }}>
                 <span style={{ fontSize: "2.2rem", fontWeight: 800, color: "#1a1a1a", fontFamily: "var(--serif)" }}>
-                  INR {book.price.toFixed(2)}
+                  ₹{book.price.toFixed(2)}
                 </span>
                 {book.actualPrice && book.actualPrice > book.price ? (
                   <span style={{ fontSize: "1.2rem", color: "#94a3b8", textDecoration: "line-through" }}>
-                    INR {book.actualPrice.toFixed(2)}
+                    ₹{book.actualPrice.toFixed(2)}
                   </span>
                 ) : null}
                 {discountPct > 0 ? (
                   <span style={{ backgroundColor: "#dcfce7", color: "#15803d", padding: "3px 10px", borderRadius: "12px", fontSize: "0.8rem", fontWeight: 800 }}>
-                    SAVE {discountPct}% (INR {savingsINR.toFixed(2)} OFF)
+                    SAVE {discountPct}% (₹{savingsINR.toFixed(0)} OFF)
                   </span>
                 ) : null}
               </div>
@@ -249,7 +250,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </div>
 
           <p style={{ color: "#d6d3d1", fontSize: "1rem", lineHeight: 1.7, margin: "0 0 1.25rem 0" }}>
-            {book.authorBio || "Veer Sukhadiya is a digital author and creator dedicated to writing compelling fiction, practical self-improvement guides, and cutting-edge technology resources. With a focus on reader accessibility, all books include high-quality standalone eBook readers and instant PDF downloads."}
+            {book.authorBio || "Veer Sukhadiya is a digital author and creator dedicated to writing compelling fiction, practical self-improvement guides, and cutting-edge technology resources. With a focus on reader accessibility, every book opens in a fast, feature-rich web reader."}
           </p>
 
           <Link
@@ -260,9 +261,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
             View Author Profile & All Books →
           </Link>
         </section>
-
-        {/* ─── GENUINE READER REVIEWS SECTION ─── */}
-        <ProductReviews initialReviews={book.reviews} />
 
       </div>
     </main>

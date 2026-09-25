@@ -3,14 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import type { Book } from "@/lib/books";
+import type { BookSummary } from "@/lib/books";
+import { canOptimize } from "@/lib/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModal } from "@/contexts/ModalContext";
 
 export default function LibraryPage() {
   const { isLoggedIn, purchasedBooks } = useAuth();
   const { show } = useModal();
-  const [catalog, setCatalog] = useState<Book[]>([]);
+  const [catalog, setCatalog] = useState<BookSummary[]>([]);
 
   useEffect(() => {
     fetch("/api/books")
@@ -64,19 +65,20 @@ export default function LibraryPage() {
                   width={300}
                   height={450}
                   className="book-cover-img"
-                  unoptimized
+                  sizes="(max-width: 640px) 45vw, 240px"
+                  unoptimized={!canOptimize(b.cover)}
                 />
               </div>
               <div className="book-info">
                 <h3>{b.title}</h3>
                 <p className="book-author">{b.author}</p>
-                <a
-                  href={b.reader || `/reader/${b.slug}`}
+                <Link
+                  href={`/reader/${b.slug}`}
                   className="btn btn-primary btn-sm"
                   style={{ marginTop: "0.75rem", width: "100%", textAlign: "center" }}
                 >
                   Read Now
-                </a>
+                </Link>
               </div>
             </article>
           ))}

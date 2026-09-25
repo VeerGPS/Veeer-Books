@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+import { BOOKS_CACHE_TAG } from "@/lib/books";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import { BookModel } from "@/models";
@@ -185,6 +187,7 @@ export async function POST(req: NextRequest) {
       isActive: true,
     });
 
+    revalidateTag(BOOKS_CACHE_TAG);
     return NextResponse.json({ book, message: "Book added successfully" });
   } catch (error) {
     console.error("Admin create book error:", error);
@@ -329,6 +332,7 @@ export async function PUT(req: NextRequest) {
     if (!book) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
+    revalidateTag(BOOKS_CACHE_TAG);
     return NextResponse.json({ book, message: "Book updated successfully" });
   } catch (error) {
     console.error("Admin update book error:", error);
@@ -357,6 +361,7 @@ export async function DELETE(req: NextRequest) {
     if (!book) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
+    revalidateTag(BOOKS_CACHE_TAG);
     return NextResponse.json({ message: "Book deleted successfully" });
   } catch (error) {
     console.error("Admin delete book error:", error);

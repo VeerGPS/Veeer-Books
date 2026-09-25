@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import HideOnReader from "@/components/HideOnReader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: "#fdfbf7",
 };
 
 export default function RootLayout({
@@ -29,7 +31,9 @@ export default function RootLayout({
         <Providers>
           <Header />
           <main id="main-content">{children}</main>
-          <Footer />
+          <HideOnReader>
+            <Footer />
+          </HideOnReader>
         </Providers>
         {process.env.VERCEL === "1" && <Analytics />}
 

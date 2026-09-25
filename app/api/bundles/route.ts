@@ -1,29 +1,27 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { connectDB } from "@/lib/mongoose";
-import { BundleModel, BookModel } from "@/models";
-import { BOOKS } from "@/lib/books";
+import { BundleModel } from "@/models";
+import { getAllBooks, toSummary, type BookSummary } from "@/lib/books";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Bundle offers change rarely: serve from cache and refresh every minute.
+export const revalidate = 60;
 
-export async function GET() {
-  try {
+const loadBundles = unstable_cache(
+  async () => {
     await connectDB();
-    const bundles = await BundleModel.find({ isActive: true }).sort({ createdAt: -1 }).lean();
-    const dbBooks = await BookModel.find({ isActive: true }).lean().catch(() => []);
+    const [bundles, books] = await Promise.all([
+      BundleModel.find({ isActive: true }).sort({ createdAt: -1 }).lean(),
+      getAllBooks(),
+    ]);
+    const byId = new Map(books.map((b) => [b.id, toSummary(b)]));
 
-    const allBooksMap = new Map();
-    BOOKS.forEach((b) => allBooksMap.set(b.id, b));
-    dbBooks.forEach((b) => allBooksMap.set(b.id, b));
-
-    const populatedBundles = bundles.map((bundle) => {
+    return bundles.map((bundle) => {
       const includedBooks = (bundle.bookIds || [])
-        .map((id) => allBooksMap.get(id))
-        .filter(Boolean);
-
-      const calculatedOriginal = includedBooks.reduce((sum, b) => sum + (b.price || b.sellingPrice || 0), 0);
-
+        .map((id: number) => byId.get(id))
+        .filter(Boolean) as BookSummary[];
+      const calculatedOriginal = includedBooks.reduce((sum, b) => sum + (b.price || 0), 0);
       return {
         _id: bundle._id.toString(),
         slug: bundle.slug,
@@ -32,15 +30,26 @@ export async function GET() {
         bookIds: bundle.bookIds,
         originalPrice: bundle.originalPrice || calculatedOriginal,
         bundlePrice: bundle.bundlePrice,
-        badge: bundle.badge || "🔥 LIMITED TIME OFFER",
+        badge: bundle.badge || "LIMITED TIME OFFER",
         isActive: bundle.isActive,
         books: includedBooks,
       };
     });
+  },
+  ["active-bundles-v2"],
+  { revalidate: 60, tags: ["bundles"] }
+);
 
-    return NextResponse.json({ bundles: populatedBundles });
+export async function GET() {
+  try {
+    const bundles = await loadBundles();
+    return NextResponse.json(
+      { bundles },
+      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+    );
   } catch (error) {
-    console.error("GET /api/bundles error:", error);
-    return NextResponse.json({ error: "Unable to fetch bundle offers" }, { status: 500 });
+    console.error("GET /api/bundles error:", (error as Error).message);
+    // No database → simply no offers (don't break the header).
+    return NextResponse.json({ bundles: [] });
   }
 }
