@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
 import ProductActions from "./ProductActions";
 import { canOptimize } from "@/lib/image";
+import ShareBar from "./ShareBar";
+import { SITE_NAME, absUrl, jsonLd } from "@/lib/site";
 
 // Pre-rendered and refreshed every minute instead of hitting the database on every visit.
 export const revalidate = 60;
@@ -20,9 +22,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const book = await getBookBySlugFromDB(params.slug);
   if (!book) return { title: "Product Not Found" };
+  const description = (book.hook || book.description || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  const url = `/product/${book.slug}`;
+  const image = book.cover ? absUrl(book.cover) : undefined;
   return {
-    title: `${book.title} | Veeer Sukhadiya Books`,
-    description: book.hook || book.description,
+    title: `${book.title} by ${book.author} — eBook`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "book",
+      url,
+      title: `${book.title} by ${book.author}`,
+      description,
+      images: image ? [{ url: image, alt: `${book.title} cover` }] : undefined,
+    },
+    twitter: { card: "summary_large_image", title: book.title, description, images: image ? [image] : undefined },
   };
 }
 
@@ -33,8 +47,48 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const savingsINR = book.actualPrice && book.actualPrice > book.price ? book.actualPrice - book.price : 0;
   const discountPct = book.actualPrice && book.actualPrice > book.price ? Math.round((savingsINR / book.actualPrice) * 100) : 0;
 
+  const pageUrl = absUrl(`/product/${book.slug}`);
+  const ld = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": ["Book", "Product"],
+        "@id": `${pageUrl}#book`,
+        name: book.title,
+        url: pageUrl,
+        image: book.cover ? absUrl(book.cover) : undefined,
+        description: (book.description || book.hook || "").slice(0, 5000),
+        author: { "@type": "Person", name: book.author, url: book.authorSlug ? absUrl(`/author/${book.authorSlug}`) : undefined },
+        publisher: { "@type": "Organization", name: SITE_NAME },
+        bookFormat: "https://schema.org/EBook",
+        numberOfPages: book.pages || undefined,
+        genre: book.genre,
+        inLanguage: "en",
+        brand: { "@type": "Brand", name: SITE_NAME },
+        sku: String(book.id),
+        offers: {
+          "@type": "Offer",
+          url: pageUrl,
+          price: book.price,
+          priceCurrency: "INR",
+          availability: "https://schema.org/InStock",
+          itemCondition: "https://schema.org/NewCondition",
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: absUrl("/") },
+          { "@type": "ListItem", position: 2, name: book.genre, item: absUrl("/#collection") },
+          { "@type": "ListItem", position: 3, name: book.title, item: pageUrl },
+        ],
+      },
+    ],
+  };
+
   return (
     <main className="product-page" style={{ padding: "4rem 1rem", backgroundColor: "#fdfbf7" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ld)} />
       <div className="container" style={{ maxWidth: 1080, margin: "0 auto" }}>
         
         {/* Breadcrumb Navigation */}
@@ -160,6 +214,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {/* Action Buttons: Buy Now, Add to Cart, Read Free Preview */}
             <ProductActions bookId={book.id} slug={book.slug} />
+            <ShareBar url={pageUrl} title={book.title} />
           </article>
         </section>
 

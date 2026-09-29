@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getActivePublishingAgreement, DEFAULT_AGREEMENT_VERSION } from "@/lib/publishing-agreement";
+import { getActivePublishingAgreement, DEFAULT_AGREEMENT_VERSION, DEFAULT_AGREEMENT_LAST_UPDATED } from "@/lib/publishing-agreement";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import PublishingAgreementDocument from "@/components/PublishingAgreementDocument";
 import { Metadata } from "next";
@@ -7,7 +7,7 @@ import { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Digital Publishing Agreement | Veeer Sukhadiya Books",
+  title: "Digital Publishing Agreement",
   description: "Official Digital Publishing Agreement and terms for authors publishing on Veeer Sukhadiya Books.",
 };
 
@@ -41,7 +41,7 @@ export default async function PublishingAgreementPage() {
           {/* Main Agreement Document */}
           <PublishingAgreementDocument
             version={agreement?.version || DEFAULT_AGREEMENT_VERSION}
-            lastUpdated="August 2026"
+            lastUpdated={DEFAULT_AGREEMENT_LAST_UPDATED}
           />
 
           {/* Content Guidelines Section */}

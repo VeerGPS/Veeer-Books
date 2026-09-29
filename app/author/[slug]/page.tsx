@@ -93,10 +93,11 @@ export async function generateMetadata({
   params: { slug: string };
 }): Promise<Metadata> {
   const data = await getAuthorData(params.slug);
-  if (!data) return { title: "Author Not Found | Veeer Sukhadiya Books" };
+  if (!data) return { title: "Author Not Found" };
 
   return {
-    title: `${data.author.penName} | Author Profile | Veeer Sukhadiya Books`,
+    title: `${data.author.penName} | Author Profile`,
+    alternates: { canonical: `/author/${params.slug}` },
     description:
       data.author.biography ||
       `Explore digital books and novels written by ${data.author.penName} on Veeer Sukhadiya Books.`,

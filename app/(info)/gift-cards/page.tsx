@@ -1,6 +1,6 @@
 import PolicyPage from "@/components/PolicyPage";
 
-export const metadata = { title: "Gift Cards | Veeer Sukhadiya Books" };
+export const metadata = { title: "Gift Cards" };
 
 export default function Page() {
   return (

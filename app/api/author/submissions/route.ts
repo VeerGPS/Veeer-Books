@@ -19,6 +19,8 @@ import {
 } from "@/lib/email-service";
 import { createInAppNotification } from "@/lib/notifications";
 import { logPublishingAudit } from "@/lib/audit";
+import { parseExtendedFields } from "@/lib/publishing-server";
+import { getPlatformSettings } from "@/lib/platform-settings";
 import {
   getActivePublishingAgreement,
   recordAgreementAcceptance,
@@ -100,6 +102,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Book title is required." }, { status: 400 });
     }
 
+    const extended = parseExtendedFields(formData);
+
     // Handle manuscript and cover files
     const manuscriptFileObj = formData.get("manuscriptFile") as File | null;
     const coverFileObj = formData.get("coverFile") as File | null;
@@ -157,6 +161,15 @@ export async function POST(req: NextRequest) {
 
     const isSubmitting = action === "submit";
 
+    if (isSubmitting) {
+      const settings = await getPlatformSettings().catch(() => null);
+      const min = settings?.minBookPrice ?? 49;
+      const max = settings?.maxBookPrice ?? 9999;
+      if (desiredPrice < min || desiredPrice > max) {
+        return NextResponse.json({ error: `List price must be between ₹${min} and ₹${max}.` }, { status: 400 });
+      }
+    }
+
     if (isSubmitting && !completeness.isComplete) {
       return NextResponse.json(
         {
@@ -184,6 +197,7 @@ export async function POST(req: NextRequest) {
       intendedAudience,
       tags,
       publicationDetails,
+      ...extended,
       manuscriptFile: manuscriptData,
       coverFile: coverData,
       currency: "INR",

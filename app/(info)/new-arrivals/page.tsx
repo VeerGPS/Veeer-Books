@@ -1,6 +1,6 @@
 import PolicyPage from "@/components/PolicyPage";
 
-export const metadata = { title: "New Arrivals | Veeer Sukhadiya Books" };
+export const metadata = { title: "New Arrivals" };
 
 export default function Page() {
   return (

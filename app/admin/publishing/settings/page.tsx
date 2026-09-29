@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ADMIN_PASSWORD } from "@/lib/admin";
+import { adminKey, verifyAdminPassword } from "@/lib/admin-client";
 
 export default function AdminPublishingSettingsPage() {
   const [password, setPassword] = useState("");
@@ -34,8 +34,8 @@ export default function AdminPublishingSettingsPage() {
   });
   const [creatingVersion, setCreatingVersion] = useState(false);
 
-  const unlock = () => {
-    if (password === ADMIN_PASSWORD) {
+  const unlock = async () => {
+    if (await verifyAdminPassword(password)) {
       setAuthorized(true);
       setError("");
       void loadData();
@@ -49,7 +49,7 @@ export default function AdminPublishingSettingsPage() {
     try {
       // 1. Load general platform settings
       const res = await fetch("/api/admin/publishing/settings", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json();
       if (data.settings) {
@@ -65,7 +65,7 @@ export default function AdminPublishingSettingsPage() {
 
       // 2. Load agreement versions and acceptance stats
       const vRes = await fetch("/api/admin/publishing/agreements", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const vData = await vRes.json();
       if (vData.versions) {
@@ -102,7 +102,7 @@ export default function AdminPublishingSettingsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify(settings),
       });
@@ -127,7 +127,7 @@ export default function AdminPublishingSettingsPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify({ action: "SET_ACTIVE" }),
       });
@@ -148,7 +148,7 @@ export default function AdminPublishingSettingsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify(newVersionForm),
       });

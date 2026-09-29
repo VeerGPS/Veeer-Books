@@ -1123,3 +1123,9 @@ footer {
 @media (max-width: 560px) { .preview-title { display: none; } }
 
 .breadcrumb { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem; }
+
+/* Share bar (product pages) */
+.share-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 1.1rem; }
+.share-label { font-size: 0.8rem; font-weight: 700; color: #8c7647; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 0.25rem; }
+.share-chip { font: 600 0.82rem var(--sans); padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid #e2ddd3; background: #fff; color: #1a1a1a; text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
+.share-chip:hover { border-color: #b7791f; background: #fbf3e4; }

@@ -1,6 +1,6 @@
 import PolicyPage from "@/components/PolicyPage";
 
-export const metadata = { title: "Terms of Service | Veeer Sukhadiya Books" };
+export const metadata = { title: "Terms of Service" };
 
 export default function Page() {
   return (

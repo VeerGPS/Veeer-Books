@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { adminKey, verifyAdminPassword } from "@/lib/admin-client";
 import Image from "next/image";
 
-const ADMIN_PASSWORD = "VSB95@veeerbooks.in";
 
 type AdminBook = {
   _id: string;
@@ -112,8 +112,8 @@ export default function AdminPage() {
     isActive: true,
   });
 
-  const unlock = () => {
-    if (password === ADMIN_PASSWORD) {
+  const unlock = async () => {
+    if (await verifyAdminPassword(password)) {
       setAuthorized(true);
       setError("");
       void loadBooks();
@@ -133,7 +133,7 @@ export default function AdminPage() {
     setBookMessage("");
     try {
       const res = await fetch("/api/admin/books", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data: { error?: string; books?: AdminBook[] } = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load books");
@@ -149,7 +149,7 @@ export default function AdminPage() {
     setCouponsLoading(true);
     try {
       const res = await fetch("/api/admin/coupons", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data: { error?: string; coupons?: AdminCoupon[] } = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load coupons");
@@ -166,7 +166,7 @@ export default function AdminPage() {
     setBundleMessage("");
     try {
       const res = await fetch("/api/admin/bundles", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data: { error?: string; bundles?: AdminBundle[] } = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load bundles");
@@ -216,7 +216,7 @@ export default function AdminPage() {
 
       const res = await fetch("/api/admin/books", {
         method: "POST",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
         body: uploadData,
       });
 
@@ -295,7 +295,7 @@ export default function AdminPage() {
 
       const res = await fetch("/api/admin/books", {
         method: "PUT",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
         body: uploadData,
       });
 
@@ -329,7 +329,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/books?id=${encodeURIComponent(bookId)}`, {
         method: "DELETE",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete book");
@@ -351,7 +351,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify({
           code: couponCode,
@@ -381,7 +381,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/coupons?code=${encodeURIComponent(code)}`, {
         method: "DELETE",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete coupon");
@@ -431,7 +431,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify({
           title: bundleForm.title,
@@ -474,7 +474,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/bundles?id=${encodeURIComponent(bundle._id)}`, {
         method: "DELETE",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete bundle");
@@ -494,7 +494,7 @@ export default function AdminPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify({
           id: bundle._id,

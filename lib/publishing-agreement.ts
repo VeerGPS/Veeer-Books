@@ -11,9 +11,9 @@ import { createInAppNotification } from "@/lib/notifications";
 import { logPublishingAudit } from "@/lib/audit";
 import { notifyAdminAgreementAccepted } from "@/lib/email-service";
 
-export const DEFAULT_AGREEMENT_VERSION = "VSB-DPA-1.0";
+export const DEFAULT_AGREEMENT_VERSION = "VSB-DPA-1.1";
 export const DEFAULT_AGREEMENT_TITLE = "Digital Publishing Agreement";
-export const DEFAULT_AGREEMENT_LAST_UPDATED = "August 2026";
+export const DEFAULT_AGREEMENT_LAST_UPDATED = "September 2026";
 
 export const FULL_AGREEMENT_TEXT = `## 1. PURPOSE OF THE AGREEMENT
 Veeer Sukhadiya Books ("VeeerBooks", "we", "us", or "our") provides a digital publishing and distribution platform through which authors and publishers may submit eligible books for review and, if approved, make them available to readers through the Veeer Sukhadiya Books platform.
@@ -195,19 +195,23 @@ The royalty ledger will retain the relevant transaction history.
 ---
 
 ## 15. ROYALTY SETTLEMENT
-Veeer Sukhadiya Books will maintain a royalty ledger for each participating Author.
+Veeer Sukhadiya Books will maintain a royalty ledger for each participating Author, visible to the Author in Author Studio.
 
-Author royalties will initially appear as pending or available according to the platform's accounting rules.
+The Author's royalty for each sale is recorded as pending as soon as the customer's payment is confirmed.
 
-Royalty payments will be handled manually by Veeer Sukhadiya Books during the applicable settlement process.
+Royalties are paid monthly on the last calendar day of each month (the "Payout Date") — the 30th or 31st, or the 28th or 29th in February.
 
-Authors may request payment of their available royalty balance by contacting Veeer Sukhadiya Books through the designated royalty-support email.
+On each Payout Date, Veeer Sukhadiya Books will pay the Author all pending royalties that are not on hold, to the bank account or UPI ID registered in the Author's payout details.
 
-Veeer Sukhadiya Books will verify the Author's royalty balance before processing a payment.
+If a Payout Date falls on a bank holiday or non-working day, the payment will be initiated on the Payout Date and may be credited by the bank on the next working day.
 
-The platform may establish reasonable settlement schedules, minimum settlement thresholds, verification requirements, and payment procedures.
+Royalties may be placed on hold where a transaction is under refund, reversal or chargeback review, where verification is required, or where the Author's payout details are missing or invalid. Held royalties are paid on the first Payout Date after the hold is resolved.
 
-The website does not promise automatic or instant royalty payments.
+The Author is responsible for keeping their payout details accurate. Veeer Sukhadiya Books is not responsible for delays or failed payments caused by incorrect or incomplete payout details.
+
+Each payout will be recorded in the royalty ledger with a payment reference.
+
+Taxes applicable to royalty payments are handled as set out in Section 16.
 
 ---
 
@@ -379,8 +383,8 @@ By accepting this Agreement, the Author confirms that:
 ---
 
 ## AGREEMENT RECORD
-• Agreement Version: VSB-DPA-1.0
-• Last Updated: August 2026
+• Agreement Version: VSB-DPA-1.1
+• Last Updated: September 2026
 
 Acceptance records:
 • Author / User ID
@@ -439,6 +443,27 @@ export async function getActivePublishingAgreement(): Promise<{
   await connectDB();
 
   let active = await PublishingAgreementVersion.findOne({ isActive: true }).lean();
+
+  // A system-seeded agreement that is older than the version shipped in code is
+  // retired and replaced, so text changes (e.g. the month-end payout terms in 1.1)
+  // reach authors. Versions created by an admin are never replaced automatically.
+  if (active && String((active as any).createdBy || "system").toLowerCase() === "system" && active.version !== DEFAULT_AGREEMENT_VERSION) {
+    await PublishingAgreementVersion.updateMany({ isActive: true }, { isActive: false });
+    await PublishingAgreementVersion.updateOne(
+      { version: DEFAULT_AGREEMENT_VERSION },
+      {
+        $set: { isActive: true, content: FULL_AGREEMENT_TEXT, title: DEFAULT_AGREEMENT_TITLE },
+        $setOnInsert: {
+          summary: "Month-end royalty payouts (Section 15)",
+          effectiveDate: new Date(),
+          createdBy: "SYSTEM",
+        },
+      },
+      { upsert: true }
+    );
+    active = null;
+  }
+
   if (!active) {
     // Check if default version exists
     active = await PublishingAgreementVersion.findOne({ version: DEFAULT_AGREEMENT_VERSION }).lean();

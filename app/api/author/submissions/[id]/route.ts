@@ -19,6 +19,8 @@ import {
 } from "@/lib/email-service";
 import { createInAppNotification } from "@/lib/notifications";
 import { logPublishingAudit } from "@/lib/audit";
+import { parseExtendedFields } from "@/lib/publishing-server";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -186,6 +188,15 @@ export async function PUT(
 
     const isSubmittingOrResubmitting = action === "submit" || action === "resubmit";
 
+    if (isSubmittingOrResubmitting) {
+      const settings = await getPlatformSettings().catch(() => null);
+      const min = settings?.minBookPrice ?? 49;
+      const max = settings?.maxBookPrice ?? 9999;
+      if (desiredPrice < min || desiredPrice > max) {
+        return NextResponse.json({ error: `List price must be between ₹${min} and ₹${max}.` }, { status: 400 });
+      }
+    }
+
     if (isSubmittingOrResubmitting && !completeness.isComplete) {
       return NextResponse.json(
         {
@@ -210,6 +221,7 @@ export async function PUT(
     submission.intendedAudience = intendedAudience;
     submission.tags = tags;
     submission.publicationDetails = publicationDetails;
+    Object.assign(submission, parseExtendedFields(formData));
     submission.desiredPrice = desiredPrice;
     submission.actualPrice = actualPrice;
     submission.rightsConfirmed = rightsConfirmed;
@@ -328,5 +340,47 @@ export async function PUT(
       { error: error instanceof Error ? error.message : "Failed to update submission" },
       { status: 500 }
     );
+  }
+}
+
+/** Authors can delete a title that is still a draft (never submitted). */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  try {
+    await connectDB();
+    const submission = await BookSubmission.findOne({ _id: params.id, userId: auth.userId });
+    if (!submission) {
+      return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+    }
+    if (submission.status !== "DRAFT") {
+      return NextResponse.json(
+        { error: "Only drafts can be deleted. Contact support to withdraw a submitted book." },
+        { status: 400 }
+      );
+    }
+    await BookSubmissionRevision.deleteMany({ submissionId: submission._id });
+    await submission.deleteOne();
+
+    await logPublishingAudit({
+      submissionId: submission._id,
+      submissionCode: submission.submissionId,
+      actorUserId: auth.userId,
+      actorRole: "author",
+      actorName: submission.penName,
+      action: "SUBMISSION_DRAFT_DELETED",
+      previousStatus: "DRAFT",
+      newStatus: "DELETED",
+      notes: `Author deleted draft "${submission.title}".`,
+    }).catch(() => {});
+
+    return NextResponse.json({ message: "Draft deleted." });
+  } catch (error) {
+    console.error("DELETE /api/author/submissions/[id] error:", error);
+    return NextResponse.json({ error: "Failed to delete draft" }, { status: 500 });
   }
 }

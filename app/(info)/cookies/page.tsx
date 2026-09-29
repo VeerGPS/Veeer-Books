@@ -1,6 +1,6 @@
 import PolicyPage from "@/components/PolicyPage";
 
-export const metadata = { title: "Cookie Policy | Veeer Sukhadiya Books" };
+export const metadata = { title: "Cookie Policy" };
 
 export default function Page() {
   return (

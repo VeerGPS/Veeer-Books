@@ -12,7 +12,7 @@ export async function generateMetadata({
   const book = await getBookBySlugFromDB(params.slug);
   if (!book) return { title: "Book Reader" };
   return {
-    title: `Reading: ${book.title} | Veeer Sukhadiya Books`,
+    title: `Reading: ${book.title}`,
     description: book.description,
     robots: { index: false },
   };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ADMIN_PASSWORD } from "@/lib/admin";
+import { adminKey, verifyAdminPassword } from "@/lib/admin-client";
 
 export default function AdminPublishingSalesPage() {
   const [password, setPassword] = useState("");
@@ -13,8 +13,8 @@ export default function AdminPublishingSalesPage() {
   const [ledger, setLedger] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const unlock = () => {
-    if (password === ADMIN_PASSWORD) {
+  const unlock = async () => {
+    if (await verifyAdminPassword(password)) {
       setAuthorized(true);
       setError("");
       void loadSales();
@@ -27,7 +27,7 @@ export default function AdminPublishingSalesPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/publishing/sales", {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load sales ledger");

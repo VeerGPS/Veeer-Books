@@ -41,8 +41,8 @@ interface PublishingAgreementDocumentProps {
 }
 
 export default function PublishingAgreementDocument({
-  version = "VSB-DPA-1.0",
-  lastUpdated = "August 2026",
+  version = "VSB-DPA-1.1",
+  lastUpdated = "September 2026",
 }: PublishingAgreementDocumentProps) {
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
@@ -453,25 +453,31 @@ export default function PublishingAgreementDocument({
             15. ROYALTY SETTLEMENT
           </h2>
           <p>
-            Veeer Sukhadiya Books will maintain a royalty ledger for each participating Author.
+            Veeer Sukhadiya Books will maintain a royalty ledger for each participating Author, visible to the Author in Author Studio.
           </p>
           <p>
-            Author royalties will initially appear as pending or available according to the platform's accounting rules.
+            The Author's royalty for each sale is recorded as pending as soon as the customer's payment is confirmed.
           </p>
           <p>
-            Royalty payments will be handled manually by Veeer Sukhadiya Books during the applicable settlement process.
+            Royalties are paid monthly on the last calendar day of each month (the "Payout Date") — the 30th or 31st, or the 28th or 29th in February.
           </p>
           <p>
-            Authors may request payment of their available royalty balance by contacting Veeer Sukhadiya Books through the designated royalty-support email.
+            On each Payout Date, Veeer Sukhadiya Books will pay the Author all pending royalties that are not on hold, to the bank account or UPI ID registered in the Author's payout details.
           </p>
           <p>
-            Veeer Sukhadiya Books will verify the Author's royalty balance before processing a payment.
+            If a Payout Date falls on a bank holiday or non-working day, the payment will be initiated on the Payout Date and may be credited by the bank on the next working day.
           </p>
           <p>
-            The platform may establish reasonable settlement schedules, minimum settlement thresholds, verification requirements, and payment procedures.
+            Royalties may be placed on hold where a transaction is under refund, reversal or chargeback review, where verification is required, or where the Author's payout details are missing or invalid. Held royalties are paid on the first Payout Date after the hold is resolved.
           </p>
-          <p style={{ fontWeight: 600 }}>
-            The website does not promise automatic or instant royalty payments.
+          <p>
+            The Author is responsible for keeping their payout details accurate. Veeer Sukhadiya Books is not responsible for delays or failed payments caused by incorrect or incomplete payout details.
+          </p>
+          <p>
+            Each payout will be recorded in the royalty ledger with a payment reference.
+          </p>
+          <p>
+            Taxes applicable to royalty payments are handled as set out in Section 16.
           </p>
         </section>
 

@@ -297,6 +297,24 @@ export interface IBookSubmission {
   intendedAudience?: string;
   tags: string[];
   publicationDetails?: string;
+
+  // ── Extended title setup (all optional, backwards compatible) ──
+  seriesName?: string;
+  seriesNumber?: number;
+  edition?: string;
+  contributors?: { role: string; name: string }[];
+  categories?: string[]; // up to 3 — categories[0] mirrors `category`
+  keywords?: string[]; // up to 7 — mirrored into `tags`
+  ageGroup?: string;
+  matureContent?: boolean;
+  publishingRights?: "own_copyright" | "public_domain";
+  aiText?: "none" | "ai_assisted" | "ai_generated";
+  aiImages?: "none" | "ai_assisted" | "ai_generated";
+  isbn?: string;
+  previewPercent?: number;
+  bundleEligible?: boolean;
+  releaseOption?: "on_approval" | "scheduled";
+  scheduledReleaseDate?: Date;
   
   manuscriptFile?: {
     originalName: string;
@@ -363,6 +381,23 @@ const bookSubmissionSchema = new Schema<IBookSubmission>(
     intendedAudience: { type: String, default: "" },
     tags: [{ type: String }],
     publicationDetails: { type: String, default: "" },
+
+    seriesName: { type: String, trim: true, default: "" },
+    seriesNumber: { type: Number },
+    edition: { type: String, trim: true, default: "" },
+    contributors: [{ role: { type: String }, name: { type: String, trim: true } }],
+    categories: [{ type: String }],
+    keywords: [{ type: String }],
+    ageGroup: { type: String, default: "" },
+    matureContent: { type: Boolean, default: false },
+    publishingRights: { type: String, enum: ["own_copyright", "public_domain"], default: "own_copyright" },
+    aiText: { type: String, enum: ["none", "ai_assisted", "ai_generated"], default: "none" },
+    aiImages: { type: String, enum: ["none", "ai_assisted", "ai_generated"], default: "none" },
+    isbn: { type: String, trim: true, default: "" },
+    previewPercent: { type: Number, default: 10, min: 0, max: 30 },
+    bundleEligible: { type: Boolean, default: true },
+    releaseOption: { type: String, enum: ["on_approval", "scheduled"], default: "on_approval" },
+    scheduledReleaseDate: { type: Date },
 
     manuscriptFile: {
       originalName: { type: String },

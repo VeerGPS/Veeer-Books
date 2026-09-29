@@ -115,6 +115,9 @@ export async function GET(req: NextRequest) {
       platformSettings: {
         supportedCategories: settings.supportedCategories,
         supportedLanguages: settings.supportedLanguages,
+        minBookPrice: settings.minBookPrice ?? 49,
+        maxBookPrice: settings.maxBookPrice ?? 9999,
+        platformCommissionPercentage: settings.platformCommissionPercentage ?? 15,
         publishingAgreementText: agreementStatus.activeAgreement?.content || settings.publishingAgreementText,
         contentGuidelinesText: settings.contentGuidelinesText,
         authorTermsText: settings.authorTermsText,

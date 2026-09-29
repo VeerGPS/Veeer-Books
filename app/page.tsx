@@ -3,6 +3,9 @@ import Link from "next/link";
 import BookGrid from "@/components/BookGrid";
 import { getAllBooks, toSummary, type BookSummary } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // Statically generated and refreshed at most once a minute (was: rebuilt + a
 // database round-trip on every single visit).

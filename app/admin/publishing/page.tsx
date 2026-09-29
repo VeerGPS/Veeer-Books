@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ADMIN_PASSWORD } from "@/lib/admin";
+import { adminKey, verifyAdminPassword } from "@/lib/admin-client";
 
 type SubmissionItem = {
   _id: string;
@@ -33,8 +33,8 @@ export default function AdminPublishingDashboard() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const unlock = () => {
-    if (password === ADMIN_PASSWORD) {
+  const unlock = async () => {
+    if (await verifyAdminPassword(password)) {
       setAuthorized(true);
       setError("");
       void loadSubmissions();
@@ -51,7 +51,7 @@ export default function AdminPublishingDashboard() {
       if (searchQuery.trim()) url.searchParams.set("search", searchQuery.trim());
 
       const res = await fetch(url.toString(), {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load submissions");

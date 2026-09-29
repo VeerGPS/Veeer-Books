@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { ADMIN_PASSWORD } from "@/lib/admin";
+import { adminKey, verifyAdminPassword } from "@/lib/admin-client";
 
 export default function AdminSubmissionDetailPage() {
   const params = useParams();
@@ -30,8 +30,8 @@ export default function AdminSubmissionDetailPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadingFormat, setUploadingFormat] = useState(false);
 
-  const unlock = () => {
-    if (password === ADMIN_PASSWORD) {
+  const unlock = async () => {
+    if (await verifyAdminPassword(password)) {
       setAuthorized(true);
       setError("");
       void loadDetails();
@@ -45,7 +45,7 @@ export default function AdminSubmissionDetailPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/publishing/submissions/${params.id}`, {
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load submission details");
@@ -74,7 +74,7 @@ export default function AdminSubmissionDetailPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": ADMIN_PASSWORD,
+          "x-admin-password": adminKey(),
         },
         body: JSON.stringify({
           action: actionName,
@@ -111,7 +111,7 @@ export default function AdminSubmissionDetailPage() {
 
       const res = await fetch(`/api/admin/publishing/submissions/${params?.id}/format`, {
         method: "POST",
-        headers: { "x-admin-password": ADMIN_PASSWORD },
+        headers: { "x-admin-password": adminKey() },
         body,
       });
 
