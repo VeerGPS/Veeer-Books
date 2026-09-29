@@ -59,9 +59,14 @@ export default function Header() {
               <Link href="/bundles" onClick={close}>
                 Bundles
               </Link>
-              <Link href="/#about" onClick={close}>
-                About
+              <Link href="/blog" onClick={close}>
+                Blog
               </Link>
+              {!isLoggedIn ? (
+                <Link href="/free-book" onClick={close} className="nav-gift">
+                  Free book
+                </Link>
+              ) : null}
             </div>
 
             <div className="nav-group-user">
@@ -69,6 +74,9 @@ export default function Header() {
                 <>
                   <Link href="/library" onClick={close}>
                     My Library
+                  </Link>
+                  <Link href="/refer" onClick={close}>
+                    Refer &amp; earn
                   </Link>
                   {isAuthor && (
                     <Link

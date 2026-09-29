@@ -173,7 +173,7 @@ export default function AuthorSubmissionDetailPage() {
               </div>
               {submission.manuscriptFile?.storagePath && (
                 <a
-                  href={`/api/files/secure/${submission.manuscriptFile.storagePath}?download=1`}
+                  href={submission.manuscriptFile.blobUrl || `/api/files/secure/${submission.manuscriptFile.storagePath}?download=1`}
                   className="btn btn-outline btn-sm btn-full"
                   style={{ marginTop: "0.75rem" }}
                 >

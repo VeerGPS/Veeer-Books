@@ -31,6 +31,27 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   const relativePath = params.path.join("/");
+
+  // Files uploaded straight to Vercel Blob: look up the stored URL and redirect.
+  if (params.path[0] === "blob") {
+    await connectDB();
+    const sub: any = await BookSubmission.findOne(
+      { $or: [{ "manuscriptFile.storagePath": relativePath }, { "coverFile.storagePath": relativePath }] },
+      { userId: 1, manuscriptFile: 1, coverFile: 1 }
+    ).lean();
+    if (!sub) return NextResponse.json({ error: "File not found" }, { status: 404 });
+    const isManuscriptBlob = sub.manuscriptFile?.storagePath === relativePath;
+    if (isManuscriptBlob && !isAdminPasswordValid(req.headers.get("x-admin-password"))) {
+      const auth = requireAuth(req);
+      if (auth instanceof NextResponse || String(sub.userId) !== auth.userId) {
+        return NextResponse.json({ error: "Access denied. You are not authorized to view this manuscript." }, { status: 403 });
+      }
+    }
+    const target = isManuscriptBlob ? sub.manuscriptFile?.blobUrl : sub.coverFile?.blobUrl;
+    if (!target) return NextResponse.json({ error: "File not found" }, { status: 404 });
+    return NextResponse.redirect(target, { status: 302, headers: { "Cache-Control": isManuscriptBlob ? "private, no-store" : "public, max-age=3600" } });
+  }
+
   const filePath = path.resolve(UPLOAD_ROOT, relativePath);
   const safeRoot = path.resolve(UPLOAD_ROOT) + path.sep;
 

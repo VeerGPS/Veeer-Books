@@ -13,6 +13,8 @@ export interface IUser {
   termsAccepted: boolean;
   isVerified: boolean;
   purchasedBooks: number[];
+  referralCode?: string;
+  referredBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,8 @@ const userSchema = new Schema<IUser>(
     termsAccepted: { type: Boolean, required: true },
     isVerified: { type: Boolean, default: false },
     purchasedBooks: [{ type: Number }],
+    referralCode: { type: String, uppercase: true, trim: true, unique: true, sparse: true },
+    referredBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
@@ -74,6 +78,8 @@ export interface IBook {
   authorBio?: string;
   submissionId?: Types.ObjectId;
   publisherType?: "in_house" | "external_author";
+  launchPrice?: number;
+  launchEndsAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +109,8 @@ const bookSchema = new Schema<IBook>(
     authorBio: { type: String },
     submissionId: { type: Schema.Types.ObjectId, ref: "BookSubmission" },
     publisherType: { type: String, enum: ["in_house", "external_author"], default: "in_house" },
+    launchPrice: { type: Number, default: 0 },
+    launchEndsAt: { type: Date },
   },
   { timestamps: true }
 );
@@ -113,6 +121,11 @@ export interface ICoupon {
   code: string;
   discountPercent: number;
   active: boolean;
+  ownerUserId?: Types.ObjectId;
+  maxUses?: number;
+  usedCount?: number;
+  expiresAt?: Date;
+  note?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -122,6 +135,12 @@ const couponSchema = new Schema<ICoupon>(
     code: { type: String, required: true, unique: true, uppercase: true, trim: true },
     discountPercent: { type: Number, required: true, default: 0 },
     active: { type: Boolean, default: true },
+    // Personal / limited coupons (e.g. referral rewards). Unset = unlimited public coupon.
+    ownerUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    maxUses: { type: Number, default: 0 },
+    usedCount: { type: Number, default: 0 },
+    expiresAt: { type: Date },
+    note: { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -137,6 +156,11 @@ export interface IOrder {
   razorpaySignature?: string;
   status: "created" | "paid" | "failed";
   items: number[];
+  subtotal?: number;
+  discount?: number;
+  couponCode?: string;
+  referralCode?: string;
+  referrerUserId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -155,6 +179,12 @@ const orderSchema = new Schema<IOrder>(
       default: "created",
     },
     items: [{ type: Number }],
+    // amount is in INR (not paise). Pricing is computed on the server.
+    subtotal: { type: Number },
+    discount: { type: Number, default: 0 },
+    couponCode: { type: String },
+    referralCode: { type: String },
+    referrerUserId: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
@@ -322,6 +352,7 @@ export interface IBookSubmission {
     mimeType: string;
     sizeBytes: number;
     uploadedAt: Date;
+    blobUrl?: string;
   };
   coverFile?: {
     originalName: string;
@@ -329,6 +360,7 @@ export interface IBookSubmission {
     mimeType: string;
     sizeBytes: number;
     uploadedAt: Date;
+    blobUrl?: string;
   };
 
   formattedReaderFile?: string;
@@ -405,6 +437,7 @@ const bookSubmissionSchema = new Schema<IBookSubmission>(
       mimeType: { type: String },
       sizeBytes: { type: Number },
       uploadedAt: { type: Date },
+      blobUrl: { type: String },
     },
     coverFile: {
       originalName: { type: String },
@@ -412,6 +445,7 @@ const bookSubmissionSchema = new Schema<IBookSubmission>(
       mimeType: { type: String },
       sizeBytes: { type: Number },
       uploadedAt: { type: Date },
+      blobUrl: { type: String },
     },
 
     formattedReaderFile: { type: String },
@@ -775,6 +809,65 @@ const agreementAcceptanceSchema = new Schema<IAgreementAcceptance>(
 );
 
 // `mongoose.models.X || model("X", schema)` is the canonical pattern for Next.js hot-reload
+// ─── Subscriber (email list / free gift) ─────────────────────────────────────
+export interface ISubscriber {
+  _id: Types.ObjectId;
+  email: string;
+  name?: string;
+  source: string;
+  giftBookId?: number;
+  giftToken: string;
+  userId?: Types.ObjectId;
+  referralCode?: string;
+  unsubscribed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const subscriberSchema = new Schema<ISubscriber>(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, trim: true, default: "" },
+    source: { type: String, default: "site" },
+    giftBookId: { type: Number },
+    giftToken: { type: String, required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    referralCode: { type: String },
+    unsubscribed: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+// ─── Review ──────────────────────────────────────────────────────────────────
+export interface IReview {
+  _id: Types.ObjectId;
+  bookId: number;
+  userId: Types.ObjectId;
+  name: string;
+  rating: number;
+  title?: string;
+  body: string;
+  verified: boolean;
+  status: "published" | "hidden";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const reviewSchema = new Schema<IReview>(
+  {
+    bookId: { type: Number, required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    name: { type: String, required: true, trim: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    title: { type: String, trim: true, default: "" },
+    body: { type: String, required: true, trim: true },
+    verified: { type: Boolean, default: true },
+    status: { type: String, enum: ["published", "hidden"], default: "published" },
+  },
+  { timestamps: true }
+);
+reviewSchema.index({ bookId: 1, userId: 1 }, { unique: true });
+
 export const User = (mongoose.models.User as mongoose.Model<IUser>) || model<IUser>("User", userSchema);
 export const OTP = (mongoose.models.OTP as mongoose.Model<IOTP>) || model<IOTP>("OTP", otpSchema);
 export const BookModel = (mongoose.models.Book as mongoose.Model<IBook>) || model<IBook>("Book", bookSchema);
@@ -791,3 +884,5 @@ export const Notification = (mongoose.models.Notification as mongoose.Model<INot
 export const EmailEvent = (mongoose.models.EmailEvent as mongoose.Model<IEmailEvent>) || model<IEmailEvent>("EmailEvent", emailEventSchema);
 export const PublishingAgreementVersion = (mongoose.models.PublishingAgreementVersion as mongoose.Model<IPublishingAgreementVersion>) || model<IPublishingAgreementVersion>("PublishingAgreementVersion", publishingAgreementVersionSchema);
 export const AgreementAcceptance = (mongoose.models.AgreementAcceptance as mongoose.Model<IAgreementAcceptance>) || model<IAgreementAcceptance>("AgreementAcceptance", agreementAcceptanceSchema);
+export const Subscriber = (mongoose.models.Subscriber as mongoose.Model<ISubscriber>) || model<ISubscriber>("Subscriber", subscriberSchema);
+export const Review = (mongoose.models.Review as mongoose.Model<IReview>) || model<IReview>("Review", reviewSchema);

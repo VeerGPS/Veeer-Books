@@ -4,6 +4,8 @@ import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import HideOnReader from "@/components/HideOnReader";
+import RefCapture from "@/components/RefCapture";
+import GiftPopup from "@/components/GiftPopup";
 import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 import "./globals.css";
 
@@ -70,6 +72,8 @@ export default function RootLayout({
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ORG_LD)} />
         <Providers>
+          <RefCapture />
+          <GiftPopup />
           <Header />
           <main id="main-content">{children}</main>
           <HideOnReader>

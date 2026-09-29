@@ -19,7 +19,11 @@ export type AnalyticsEventName =
   | "external_book_preview"
   | "external_book_add_to_cart"
   | "external_book_checkout"
-  | "external_book_purchase";
+  | "external_book_purchase"
+  | "free_gift_claimed"
+  | "referral_link_shared"
+  | "review_submitted"
+  | "book_shared";
 
 export function trackMarketplaceEvent(
   event: AnalyticsEventName,

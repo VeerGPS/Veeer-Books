@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllBooks } from "@/lib/books";
 import { SITE_URL } from "@/lib/site";
+import { POSTS } from "@/lib/blog";
 import { connectDB } from "@/lib/mongoose";
 import { AuthorProfile } from "@/models";
 
@@ -12,6 +13,8 @@ const STATIC: { path: string; priority: number; freq: MetadataRoute.Sitemap[numb
   { path: "/best-sellers", priority: 0.8, freq: "weekly" },
   { path: "/new-arrivals", priority: 0.8, freq: "weekly" },
   { path: "/publish", priority: 0.8, freq: "monthly" },
+  { path: "/blog", priority: 0.7, freq: "weekly" },
+  { path: "/free-book", priority: 0.7, freq: "monthly" },
   { path: "/publishing-agreement", priority: 0.3, freq: "yearly" },
   { path: "/help-centre", priority: 0.4, freq: "monthly" },
   { path: "/contact-us", priority: 0.4, freq: "yearly" },
@@ -31,6 +34,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: s.freq,
     priority: s.priority,
   }));
+
+  for (const p of POSTS) {
+    entries.push({ url: `${SITE_URL}/blog/${p.slug}`, lastModified: new Date(p.date), changeFrequency: "monthly", priority: 0.6 });
+  }
 
   const books = await getAllBooks().catch(() => []);
   const authorSlugs = new Set<string>();

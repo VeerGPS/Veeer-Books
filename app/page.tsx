@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import BookGrid from "@/components/BookGrid";
+import GiftSignup from "@/components/GiftSignup";
 import { getAllBooks, toSummary, type BookSummary } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
 import type { Metadata } from "next";
@@ -169,6 +170,10 @@ export default async function HomePage() {
       </section>
 
       {/* ─── About the author ────────────────────────────────── */}
+      <section className="container home-gift" aria-label="Free book">
+        <GiftSignup variant="card" source="home" />
+      </section>
+
       <section className="container" id="about">
         <div className="about-grid">
           <div className="about-image">

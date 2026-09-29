@@ -6,6 +6,9 @@ import { BOOKS, getBookBySlugFromDB } from "@/lib/books";
 import ProductActions from "./ProductActions";
 import { canOptimize } from "@/lib/image";
 import ShareBar from "./ShareBar";
+import LaunchCountdown from "@/components/LaunchCountdown";
+import BookReviews, { Stars } from "@/components/BookReviews";
+import { getBookReviews } from "@/lib/reviews";
 import { SITE_NAME, absUrl, jsonLd } from "@/lib/site";
 
 // Pre-rendered and refreshed every minute instead of hitting the database on every visit.
@@ -48,6 +51,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const discountPct = book.actualPrice && book.actualPrice > book.price ? Math.round((savingsINR / book.actualPrice) * 100) : 0;
 
   const pageUrl = absUrl(`/product/${book.slug}`);
+  const { summary: reviewSummary, reviews } = await getBookReviews(book.id);
   const ld = {
     "@context": "https://schema.org",
     "@graph": [
@@ -66,6 +70,19 @@ export default async function ProductPage({ params }: { params: { slug: string }
         inLanguage: "en",
         brand: { "@type": "Brand", name: SITE_NAME },
         sku: String(book.id),
+        ...(reviewSummary.count > 0
+          ? {
+              aggregateRating: { "@type": "AggregateRating", ratingValue: reviewSummary.average, reviewCount: reviewSummary.count, bestRating: 5, worstRating: 1 },
+              review: reviews.slice(0, 5).map((r) => ({
+                "@type": "Review",
+                author: { "@type": "Person", name: r.name },
+                datePublished: r.createdAt.slice(0, 10),
+                reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+                name: r.title || undefined,
+                reviewBody: r.body,
+              })),
+            }
+          : {}),
         offers: {
           "@type": "Offer",
           url: pageUrl,
@@ -173,6 +190,12 @@ export default async function ProductPage({ params }: { params: { slug: string }
               </Link>
             </p>
 
+            {reviewSummary.count > 0 ? (
+              <a href="#reviews" className="rating-inline">
+                <Stars value={reviewSummary.average} /> <b>{reviewSummary.average.toFixed(1)}</b> · {reviewSummary.count} review{reviewSummary.count === 1 ? "" : "s"}
+              </a>
+            ) : null}
+
             {/* Strong One-Line Book Hook */}
             {book.hook ? (
               <p
@@ -193,7 +216,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             {/* Price Callout */}
             <div style={{ margin: "1.25rem 0 1.5rem" }}>
               <div style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                Digital Price
+                {book.launchEndsAt ? "Launch price" : "Digital Price"}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem 0.75rem", marginTop: "0.25rem", flexWrap: "wrap", whiteSpace: "nowrap" }}>
                 <span style={{ fontSize: "2.2rem", fontWeight: 800, color: "#1a1a1a", fontFamily: "var(--serif)" }}>
@@ -210,6 +233,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                   </span>
                 ) : null}
               </div>
+              {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} regularPrice={book.regularPrice} /> : null}
             </div>
 
             {/* Action Buttons: Buy Now, Add to Cart, Read Free Preview */}
@@ -217,6 +241,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <ShareBar url={pageUrl} title={book.title} />
           </article>
         </section>
+
+        <BookReviews bookId={book.id} bookTitle={book.title} initialSummary={reviewSummary} initialReviews={reviews} />
 
         {/* ─── WHAT YOU'LL GET & WHO IS THIS FOR (2 Grid Cards) ─── */}
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.75rem", marginBottom: "3rem" }}>

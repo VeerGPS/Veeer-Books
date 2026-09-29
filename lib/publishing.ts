@@ -240,11 +240,13 @@ export function checkTabs(
   };
 }
 
+export type BlobRef = { url: string; pathname: string; originalName: string; size: number; contentType: string };
+
 /** Build the multipart body the submissions API expects. */
 export function toFormData(
   f: SetupForm,
   action: "draft" | "submit" | "resubmit",
-  files: { manuscript?: File | null; cover?: File | null },
+  files: { manuscript?: File | null; cover?: File | null; manuscriptBlob?: BlobRef | null; coverBlob?: BlobRef | null },
   agreementVersion?: string
 ) {
   const fd = new FormData();
@@ -286,7 +288,10 @@ export function toFormData(
   set("accurateInfoConfirmed", String(f.accurateInfoConfirmed || f.termsAccepted));
   if (f.authorNotes.trim()) set("authorNotes", f.authorNotes.trim());
   if (agreementVersion) set("agreementVersion", agreementVersion);
-  if (files.manuscript) fd.append("manuscriptFile", files.manuscript);
-  if (files.cover) fd.append("coverFile", files.cover);
+  // Files already uploaded straight to cloud storage are sent as references; otherwise as file parts.
+  if (files.manuscriptBlob) fd.append("manuscriptBlob", JSON.stringify(files.manuscriptBlob));
+  else if (files.manuscript) fd.append("manuscriptFile", files.manuscript);
+  if (files.coverBlob) fd.append("coverBlob", JSON.stringify(files.coverBlob));
+  else if (files.cover) fd.append("coverFile", files.cover);
   return fd;
 }

@@ -2,8 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import type { BookSummary } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
+import LaunchCountdown from "@/components/LaunchCountdown";
 
-// Server component: no client JavaScript is shipped for book cards.
+// Server component (only the optional launch countdown ships client JavaScript).
 export default function BookCard({ book, priority = false }: { book: BookSummary; priority?: boolean }) {
   const productHref = `/product/${book.slug}`;
   const cover = book.cover || "/images/default-book.svg";
@@ -38,6 +39,7 @@ export default function BookCard({ book, priority = false }: { book: BookSummary
           ₹{book.price}
           {off > 0 ? <s>₹{book.actualPrice}</s> : null}
         </div>
+        {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} compact /> : null}
       </div>
     </article>
   );

@@ -25,7 +25,17 @@ type AdminBook = {
   description: string;
   htmlContent: string;
   isActive: boolean;
+  launchPrice?: number;
+  launchEndsAt?: string | null;
 };
+
+function toLocalInput(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(+d)) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 type AdminCoupon = {
   _id: string;
@@ -288,6 +298,8 @@ export default function AdminPage() {
       uploadData.append("cover", editingBook.cover || "/images/default-book.svg");
       uploadData.append("reader", editingBook.reader || "/readers/default-reader.html");
       uploadData.append("pdf", editingBook.pdf || "/books/default-book.pdf");
+      uploadData.append("launchPrice", String(editingBook.launchPrice || ""));
+      uploadData.append("launchEndsAt", editingBook.launchPrice && editingBook.launchEndsAt ? new Date(editingBook.launchEndsAt).toISOString() : "");
 
       if (editCoverFile) uploadData.append("coverFile", editCoverFile);
       if (editPdfFile) uploadData.append("pdfFile", editPdfFile);
@@ -579,12 +591,15 @@ export default function AdminPage() {
               Review author submissions, convert manuscripts into interactive readers, and manage platform royalties.
             </p>
           </div>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <Link href="/admin/publishing" className="btn btn-sm" style={{ backgroundColor: "#b45309", color: "#ffffff", fontWeight: 700 }}>
               Editorial Publishing Queue →
             </Link>
             <Link href="/admin/publishing/sales" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
               Marketplace Sales
+            </Link>
+            <Link href="/admin/reviews" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
+              Reviews
             </Link>
           </div>
         </div>
@@ -709,6 +724,20 @@ export default function AdminPage() {
                   <label htmlFor="edit-sellingPrice" style={labelStyle}>Selling Price (INR) *</label>
                   <input id="edit-sellingPrice" type="number" min="1" required value={editingBook.sellingPrice || editingBook.price} onChange={(e) => setEditingBook({ ...editingBook, sellingPrice: Number(e.target.value), price: Number(e.target.value) })} style={inputStyle} />
                 </div>
+              </div>
+              <div style={{ border: "1px dashed #d6b77a", background: "#fffaf0", borderRadius: 10, padding: "0.9rem", marginBottom: "1rem" }}>
+                <div style={{ fontWeight: 700, marginBottom: "0.5rem" }}>🚀 Launch offer (optional)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <label htmlFor="edit-launchPrice" style={labelStyle}>Launch price (INR)</label>
+                    <input id="edit-launchPrice" type="number" min="0" value={editingBook.launchPrice || ""} placeholder="e.g. 49" onChange={(e) => setEditingBook({ ...editingBook, launchPrice: Number(e.target.value) })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-launchEndsAt" style={labelStyle}>Offer ends</label>
+                    <input id="edit-launchEndsAt" type="datetime-local" value={toLocalInput(editingBook.launchEndsAt)} onChange={(e) => setEditingBook({ ...editingBook, launchEndsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} style={inputStyle} />
+                  </div>
+                </div>
+                <p style={{ fontSize: "0.8rem", color: "#78716c", margin: "0.5rem 0 0" }}>Shows a countdown on the book page and charges the launch price until the end time. Leave empty to turn it off.</p>
               </div>
               <div style={{ marginBottom: "1rem" }}>
                 <label htmlFor="edit-genre" style={labelStyle}>Genre</label>

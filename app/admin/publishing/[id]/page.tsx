@@ -385,7 +385,7 @@ export default function AdminSubmissionDetailPage() {
 
                 {submission.manuscriptFile?.storagePath ? (
                   <a
-                    href={`/api/files/secure/${submission.manuscriptFile.storagePath}?download=1`}
+                    href={submission.manuscriptFile.blobUrl || `/api/files/secure/${submission.manuscriptFile.storagePath}?download=1`}
                     className="btn btn-primary btn-sm"
                     style={{ display: "inline-block", textDecoration: "none" }}
                   >

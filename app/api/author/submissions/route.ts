@@ -9,6 +9,7 @@ import {
 import { requireAuth, getOptionalAuth } from "@/lib/auth";
 import {
   saveSecureFile,
+  parseBlobField,
   isAllowedManuscript,
   isAllowedCover,
   calculateSubmissionCompleteness,
@@ -109,7 +110,13 @@ export async function POST(req: NextRequest) {
     const coverFileObj = formData.get("coverFile") as File | null;
 
     let manuscriptData: any = undefined;
-    if (manuscriptFileObj && manuscriptFileObj.size > 0) {
+    const manuscriptBlob = parseBlobField(formData, "manuscriptBlob", "manuscripts");
+    const coverBlob = parseBlobField(formData, "coverBlob", "covers");
+    if (manuscriptBlob === "invalid" || coverBlob === "invalid") {
+      return NextResponse.json({ error: "The uploaded file could not be verified. Please upload it again." }, { status: 400 });
+    }
+    if (manuscriptBlob) manuscriptData = manuscriptBlob;
+    else if (manuscriptFileObj && manuscriptFileObj.size > 0) {
       if (!isAllowedManuscript(manuscriptFileObj.name)) {
         return NextResponse.json(
           {
@@ -128,7 +135,8 @@ export async function POST(req: NextRequest) {
     }
 
     let coverData: any = undefined;
-    if (coverFileObj && coverFileObj.size > 0) {
+    if (coverBlob) coverData = coverBlob;
+    else if (coverFileObj && coverFileObj.size > 0) {
       if (!isAllowedCover(coverFileObj.name)) {
         return NextResponse.json(
           { error: "Invalid cover image format. Allowed formats: JPG, PNG, WEBP." },

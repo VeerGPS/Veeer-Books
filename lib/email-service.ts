@@ -410,7 +410,7 @@ export async function notifyAdminBookSubmitted(submission: IBookSubmission) {
     : "Unknown size";
 
   const manuscriptUrl = submission.manuscriptFile?.storagePath
-    ? `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
+    ? (submission.manuscriptFile as any).blobUrl || `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
     : "";
   const coverUrl = submission.coverFile?.storagePath
     ? `${baseUrl}/api/files/secure/${submission.coverFile.storagePath}`
@@ -554,7 +554,7 @@ export async function notifyAdminBookResubmitted(
     : "Unknown size";
 
   const manuscriptUrl = submission.manuscriptFile?.storagePath
-    ? `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
+    ? (submission.manuscriptFile as any).blobUrl || `${baseUrl}/api/files/secure/${submission.manuscriptFile.storagePath}`
     : "";
   const coverUrl = submission.coverFile?.storagePath
     ? `${baseUrl}/api/files/secure/${submission.coverFile.storagePath}`
@@ -891,4 +891,48 @@ export async function notifyNewBookSale({
       text: `You made a sale for "${bookTitle}"! Earnings: ₹${authorShare.toFixed(2)}. View your dashboard at ${baseUrl}/author/dashboard`,
     });
   }
+}
+
+// ─── READER EMAILS (gift, referral rewards) ─────────────────────────────────
+
+function esc(s: string) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+/** A simple, friendly email for readers (not the publishing-system template). */
+export async function sendReaderEmail({
+  eventId,
+  eventType,
+  to,
+  subject,
+  headline,
+  paragraphs,
+  button,
+  footnote,
+}: {
+  eventId: string;
+  eventType: string;
+  to: string;
+  subject: string;
+  headline: string;
+  paragraphs: string[];
+  button?: { label: string; url: string };
+  footnote?: string;
+}) {
+  const base = getBaseUrl();
+  const url = button ? (button.url.startsWith("http") ? button.url : base + button.url) : "";
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
+<body style="margin:0;padding:24px 12px;background:#f5f3ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#1c1917;line-height:1.6">
+<table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:14px;border:1px solid #e6e1d6;overflow:hidden">
+<tr><td style="background:#1c1917;padding:20px 28px;text-align:center;border-bottom:3px solid #b7791f"><span style="color:#fff;font-family:Georgia,serif;font-size:20px">Veeer Sukhadiya Books</span></td></tr>
+<tr><td style="padding:28px">
+<h1 style="font-family:Georgia,serif;font-size:22px;margin:0 0 14px">${esc(headline)}</h1>
+${paragraphs.map((p) => `<p style="margin:0 0 14px;color:#44403c;font-size:15px">${esc(p)}</p>`).join("")}
+${button ? `<p style="margin:22px 0"><a href="${esc(url)}" style="display:inline-block;background:#b7791f;color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:8px">${esc(button.label)}</a></p>` : ""}
+${footnote ? `<p style="margin:18px 0 0;color:#8a847b;font-size:12px">${esc(footnote)}</p>` : ""}
+</td></tr>
+<tr><td style="padding:16px 28px;background:#faf8f5;color:#8a847b;font-size:12px;text-align:center">You’re receiving this because you signed up at ${esc(base.replace(/^https?:\/\//, ""))}.</td></tr>
+</table></body></html>`;
+  const text = `${headline}\n\n${paragraphs.join("\n\n")}${button ? `\n\n${button.label}: ${url}` : ""}${footnote ? `\n\n${footnote}` : ""}`;
+  return sendIdempotentEmail({ eventId, eventType, recipient: to, subject, html, text });
 }

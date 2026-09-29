@@ -246,6 +246,8 @@ export async function PUT(req: NextRequest) {
       cover,
       reader,
       pdf,
+      launchPrice,
+      launchEndsAt,
     } = body;
 
     if (!id || !title || !author) {
@@ -291,6 +293,22 @@ export async function PUT(req: NextRequest) {
       accent: accent || "#1a252f",
       isActive: isActive !== "false" && isActive !== false,
     };
+
+    // Launch offer: a lower price until a date. Empty values end the offer.
+    if (launchPrice !== undefined || launchEndsAt !== undefined) {
+      const lp = Number(launchPrice) || 0;
+      const ends = launchEndsAt ? new Date(String(launchEndsAt)) : null;
+      if (lp > 0 && ends && !isNaN(+ends)) {
+        if (lp >= price) {
+          return NextResponse.json({ error: "Launch price must be lower than the selling price." }, { status: 400 });
+        }
+        updates.launchPrice = lp;
+        updates.launchEndsAt = ends;
+      } else {
+        updates.launchPrice = 0;
+        updates.launchEndsAt = null;
+      }
+    }
 
     if (typeof htmlContent === "string" && htmlContent.trim()) {
       updates.htmlContent = await persistHtmlContent(htmlContent, safeSlug);

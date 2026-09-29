@@ -13,7 +13,9 @@ import {
   BookModel,
   AuthorProfile,
   AuthorRevenueLedger,
+  CouponModel,
 } from "@/models";
+import { rewardReferrer } from "@/lib/referrals";
 import { requireAuth } from "@/lib/auth";
 import { getPlatformCommissionPercentage } from "@/lib/platform-settings";
 import { notifyNewBookSale } from "@/lib/email-service";
@@ -53,8 +55,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const before = await Order.findOne({ razorpayOrderId: razorpay_order_id }, { status: 1 }).lean();
+    const firstConfirmation = Boolean(before && before.status !== "paid");
+
     const order = await Order.findOneAndUpdate(
-      { razorpayOrderId: razorpay_order_id },
+      { razorpayOrderId: razorpay_order_id, userId: auth.userId },
       {
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
@@ -74,10 +79,25 @@ export async function POST(req: NextRequest) {
       $addToSet: { purchasedBooks: { $each: order.items } },
     });
 
+    // One-time side effects: coupon usage and referral reward.
+    if (firstConfirmation) {
+      try {
+        if (order.couponCode) {
+          await CouponModel.updateOne({ code: order.couponCode }, { $inc: { usedCount: 1 } });
+        }
+        if (order.referrerUserId) {
+          await rewardReferrer({ referrerUserId: String(order.referrerUserId), friendUserId: auth.userId, orderId: String(order._id) });
+        }
+      } catch (e) {
+        console.error("Post-payment reward error:", e);
+      }
+    }
+
     // ─── Marketplace Revenue Attribution ──────────────────────────────────
     try {
       const commissionPercent = await getPlatformCommissionPercentage();
-      const orderPaidInr = (order.amount || 0) / 100; // Razorpay amounts are in paise
+      // Order.amount is stored in INR (the Razorpay order itself is in paise).
+      const orderPaidInr = order.amount || 0;
 
       // Fetch all books in this order
       const orderBooks = await BookModel.find({ id: { $in: order.items } }).lean();
@@ -114,7 +134,7 @@ export async function POST(req: NextRequest) {
               orderId: order._id,
               razorpayOrderId: order.razorpayOrderId,
               razorpayPaymentId: order.razorpayPaymentId,
-              buyerUserId: auth.userId,
+              customerId: auth.userId,
               authorId: author._id,
               authorUserId: author.userId,
               bookId: book.id,

@@ -41,6 +41,7 @@ let cache: { token: string; data: StudioData; at: number } | null = null;
 const NAV = [
   { href: "/author/dashboard", label: "Bookshelf" },
   { href: "/author/reports", label: "Reports" },
+  { href: "/author/promote", label: "Promote" },
   { href: "/author/payments", label: "Payments" },
   { href: "/author/account", label: "Account" },
   { href: "/author/help", label: "Help" },

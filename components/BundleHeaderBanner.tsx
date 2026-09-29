@@ -48,7 +48,9 @@ export default function BundleHeaderBanner() {
           const bundle = data.bundles[0];
           setActiveBundle(bundle);
 
-          // Auto-open modal popup once per session
+          // Auto-open modal popup once per session — never over checkout, readers or dashboards.
+          const quiet = ["/cart", "/reader", "/author", "/admin", "/gift", "/free-book", "/refer"];
+          if (quiet.some((p) => window.location.pathname.startsWith(p))) return;
           try {
             const hasSeen = sessionStorage.getItem(`seen_bundle_${bundle._id}`);
             if (!hasSeen) {

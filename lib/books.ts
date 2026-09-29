@@ -42,6 +42,10 @@ export type Book = {
   publisherType?: "in_house" | "external_author";
   highlights?: string[];    // optional bullet list shown on product page
   htmlContent?: string;
+  /** ISO date while a launch price is running (price is then the launch price). */
+  launchEndsAt?: string;
+  /** Regular price to return to after the launch offer. */
+  regularPrice?: number;
 };
 
 export const DEFAULT_AUTHOR_BIO =
@@ -305,10 +309,22 @@ function resolveBookReader(reader?: string, slug?: string, title?: string): stri
 type BookDoc = Record<string, any>;
 
 /** Merge a database record with the built-in catalogue entry (DB wins for admin-managed fields). */
+/** Active launch offer, if any: a lower price that runs until launchEndsAt. */
+export function activeLaunch(d: { launchPrice?: number; launchEndsAt?: Date | string | null }, regular: number) {
+  const ends = d.launchEndsAt ? new Date(d.launchEndsAt) : null;
+  if (!ends || isNaN(+ends) || +ends <= Date.now()) return null;
+  const lp = Number(d.launchPrice) || 0;
+  if (lp <= 0 || lp >= regular) return null;
+  return { price: lp, endsAt: ends.toISOString() };
+}
+
 function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
-  const priceVal = resolveBookPrice(d);
-  const actualPriceVal =
-    typeof d.actualPrice === "number" && d.actualPrice > priceVal ? d.actualPrice : local?.actualPrice;
+  const regular = resolveBookPrice(d);
+  const launch = activeLaunch(d, regular || local?.price || 0);
+  const priceVal = launch ? launch.price : regular;
+  const actualPriceVal = launch
+    ? Math.max(Number(d.actualPrice) || 0, regular)
+    : typeof d.actualPrice === "number" && d.actualPrice > priceVal ? d.actualPrice : local?.actualPrice;
   const slug = d.slug || local?.slug || slugHint || `book-${d.id}`;
 
   return {
@@ -341,6 +357,8 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
     authorSlug: d.authorSlug || undefined,
     publisherType: d.publisherType || "in_house",
     highlights: d.highlights && d.highlights.length > 0 ? d.highlights : local?.highlights,
+    launchEndsAt: launch?.endsAt,
+    regularPrice: launch ? regular : undefined,
   };
 }
 
@@ -403,12 +421,13 @@ export const getBookBySlugFromDB = cache(
 /** Small, client-safe shape for listings sent to the browser. */
 export type BookSummary = Pick<
   Book,
-  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader"
+  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader" | "launchEndsAt"
 >;
 
 export function toSummary(b: Book): BookSummary {
   return {
     id: b.id, slug: b.slug, title: b.title, author: b.author, price: b.price, actualPrice: b.actualPrice,
     color: b.color, genre: b.genre, pages: b.pages, cover: b.cover, reader: b.reader,
+    ...(b.launchEndsAt ? { launchEndsAt: b.launchEndsAt } : {}),
   };
 }

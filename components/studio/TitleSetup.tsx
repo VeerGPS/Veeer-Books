@@ -10,7 +10,7 @@ import {
   AGE_GROUPS, AI_OPTIONS, CONTRIBUTOR_ROLES, COVER_EXTS, COVER_IDEAL, COVER_MAX_MB, COVER_MIN,
   DEFAULT_CATEGORIES, DEFAULT_LANGUAGES, DESCRIPTION_MAX, DESCRIPTION_MIN, EMPTY_FORM, MANUSCRIPT_EXTS,
   MANUSCRIPT_MAX_MB, MAX_CATEGORIES, MAX_KEYWORDS, canEdit, checkTabs, extOf, formFromSubmission,
-  formatBytes, inr, royaltyFor, statusInfo, toFormData, type SetupForm,
+  formatBytes, inr, royaltyFor, statusInfo, toFormData, type SetupForm, type BlobRef,
 } from "@/lib/publishing";
 
 type Tab = "details" | "content" | "pricing";
@@ -43,6 +43,7 @@ export default function TitleSetup({ submissionId }: { submissionId?: string }) 
   const [loading, setLoading] = useState(!!submissionId);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState<"" | "draft" | "submit">("");
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
@@ -191,13 +192,21 @@ export default function TitleSetup({ submissionId }: { submissionId?: string }) 
     }
     setSaving(action === "draft" ? "draft" : "submit");
     try {
-      const body = toFormData(form, action, { manuscript, cover }, agreementVersion);
+      // Large files go straight to cloud storage when it's configured (no 4.5 MB server limit).
+      let manuscriptBlob: BlobRef | null = null;
+      let coverBlob: BlobRef | null = null;
+      if ((manuscript || cover) && (await directUploadsEnabled())) {
+        if (cover) coverBlob = await uploadDirect(cover, "covers", token || "", (p) => setUploadPct(p));
+        if (manuscript) manuscriptBlob = await uploadDirect(manuscript, "manuscripts", token || "", (p) => setUploadPct(p));
+        setUploadPct(null);
+      }
+      const body = toFormData(form, action, { manuscript, cover, manuscriptBlob, coverBlob }, agreementVersion);
       const res = await fetch(id ? `/api/author/submissions/${id}` : "/api/author/submissions", {
         method: id ? "PUT" : "POST",
         headers: { Authorization: `Bearer ${token}` },
         body,
       });
-      if (res.status === 413) throw new Error("That upload is too large for the server. Please compress the file (under 4 MB works best) and try again.");
+      if (res.status === 413) throw new Error("That upload is too large for the server. Please compress the file (under 4 MB) and try again, or ask the site owner to turn on large uploads.");
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Saving failed — please try again.");
       const s = json.submission;
@@ -226,6 +235,7 @@ export default function TitleSetup({ submissionId }: { submissionId?: string }) 
       if (nextTab) { setTab(nextTab); window.scrollTo({ top: 0, behavior: "smooth" }); }
       return true;
     } catch (e) {
+      setUploadPct(null);
       setError(e instanceof Error ? e.message : "Saving failed — please try again.");
       return false;
     } finally {
@@ -533,15 +543,15 @@ export default function TitleSetup({ submissionId }: { submissionId?: string }) 
         <div className="setup-foot">
           <div className="setup-foot-inner">
             <span className="grow">{dirty ? "You have unsaved changes" : id ? "All changes saved" : "Nothing saved yet"}</span>
-            <button className="s-btn" disabled={!!saving} onClick={() => save("draft")}>{saving === "draft" ? "Saving…" : "Save as draft"}</button>
+            <button className="s-btn" disabled={!!saving} onClick={() => save("draft")}>{saving === "draft" ? (uploadPct !== null ? `Uploading ${uploadPct}%…` : "Saving…") : "Save as draft"}</button>
             {prevTab ? <button className="s-btn s-btn-ghost" onClick={() => goTab(prevTab)}>← Back</button> : null}
             {nextTab ? (
               <button className="s-btn s-btn-primary" disabled={!!saving} onClick={() => (dirty || !id ? save("draft", nextTab) : goTab(nextTab))}>
-                {saving === "draft" ? "Saving…" : "Save and continue →"}
+                {saving === "draft" ? (uploadPct !== null ? `Uploading ${uploadPct}%…` : "Saving…") : "Save and continue →"}
               </button>
             ) : (
               <button className="s-btn s-btn-accent" disabled={!!saving} onClick={() => save(isResubmit ? "resubmit" : "submit")}>
-                {saving === "submit" ? "Submitting…" : isResubmit ? "Resubmit for review" : "Submit for review"}
+                {saving === "submit" ? (uploadPct !== null ? `Uploading ${uploadPct}%…` : "Submitting…") : isResubmit ? "Resubmit for review" : "Submit for review"}
               </button>
             )}
           </div>
@@ -708,4 +718,30 @@ function DropZone({ accept, onFile, error, children }: { accept: string; onFile:
       <input ref={input} type="file" accept={accept} hidden onChange={(e) => { onFile(e.target.files?.[0] || null); e.target.value = ""; }} />
     </div>
   );
+}
+
+// ── Direct uploads (Vercel Blob) ───────────────────────────────────
+let directCache: boolean | null = null;
+async function directUploadsEnabled() {
+  if (directCache !== null) return directCache;
+  try {
+    const r = await fetch("/api/author/uploads");
+    directCache = r.ok ? Boolean((await r.json()).enabled) : false;
+  } catch {
+    directCache = false;
+  }
+  return directCache;
+}
+
+async function uploadDirect(file: File, folder: "covers" | "manuscripts", token: string, onPct: (p: number) => void): Promise<BlobRef> {
+  const { upload } = await import("@vercel/blob/client");
+  const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "").slice(-80) || "file";
+  const res = await upload(`${folder}/${safe}`, file, {
+    access: "public",
+    handleUploadUrl: "/api/author/uploads",
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: file.size > 8 * 1024 * 1024,
+    onUploadProgress: ({ percentage }) => onPct(Math.round(percentage)),
+  });
+  return { url: res.url, pathname: res.pathname, originalName: file.name, size: file.size, contentType: file.type || res.contentType || "application/octet-stream" };
 }

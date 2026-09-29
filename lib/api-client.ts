@@ -61,8 +61,9 @@ export const apiRazorpayKey = () =>
   call("/razorpay/key", { method: "GET" }) as Promise<{ key: string }>;
 
 export const apiRazorpayOrder = (payload: {
-  amountINR: number;
   items: number[];
+  couponCode?: string;
+  refCode?: string;
 }) => call("/razorpay/order", { method: "POST", json: payload });
 
 export const apiRazorpayVerify = (payload: {

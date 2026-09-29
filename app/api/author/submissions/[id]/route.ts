@@ -8,6 +8,7 @@ import {
 import { requireAuth } from "@/lib/auth";
 import {
   saveSecureFile,
+  parseBlobField,
   isAllowedManuscript,
   isAllowedCover,
   calculateSubmissionCompleteness,
@@ -137,7 +138,13 @@ export async function PUT(
     const coverFileObj = formData.get("coverFile") as File | null;
 
     let manuscriptData = submission.manuscriptFile;
-    if (manuscriptFileObj && manuscriptFileObj.size > 0) {
+    const manuscriptBlob = parseBlobField(formData, "manuscriptBlob", "manuscripts");
+    const coverBlob = parseBlobField(formData, "coverBlob", "covers");
+    if (manuscriptBlob === "invalid" || coverBlob === "invalid") {
+      return NextResponse.json({ error: "The uploaded file could not be verified. Please upload it again." }, { status: 400 });
+    }
+    if (manuscriptBlob) manuscriptData = manuscriptBlob as any;
+    else if (manuscriptFileObj && manuscriptFileObj.size > 0) {
       if (!isAllowedManuscript(manuscriptFileObj.name)) {
         return NextResponse.json(
           { error: "Invalid manuscript format. Allowed: .pdf, .docx, .doc, .epub, .txt, .rtf" },
@@ -156,7 +163,8 @@ export async function PUT(
     }
 
     let coverData = submission.coverFile;
-    if (coverFileObj && coverFileObj.size > 0) {
+    if (coverBlob) coverData = coverBlob as any;
+    else if (coverFileObj && coverFileObj.size > 0) {
       if (!isAllowedCover(coverFileObj.name)) {
         return NextResponse.json(
           { error: "Invalid cover image format. Allowed: .jpg, .png, .webp" },

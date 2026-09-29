@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const publishedBooks = await BookModel.find({
       $or: [{ authorId: profile._id }, { authorSlug: profile.slug }],
       isActive: true,
-    })
+    }, { htmlContent: 0 })
       .sort({ createdAt: -1 })
       .lean();
 

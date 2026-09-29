@@ -1,9 +1,13 @@
 import Link from "next/link";
+import GiftSignup from "@/components/GiftSignup";
 
 export default function Footer() {
   return (
     <footer>
       <div className="container">
+        <div className="footer-gift">
+          <GiftSignup variant="inline" source="footer" />
+        </div>
         <div className="footer-grid">
           <div className="footer-brand">
             <h3>Veeer Sukhadiya Books</h3>
@@ -26,6 +30,9 @@ export default function Footer() {
               <li><Link href="/new-arrivals">New Arrivals</Link></li>
               <li><Link href="/bundles">Bundles</Link></li>
               <li><Link href="/#collection">All Collections</Link></li>
+              <li><Link href="/free-book">Free Book</Link></li>
+              <li><Link href="/blog">Blog</Link></li>
+              <li><Link href="/refer">Refer &amp; Earn</Link></li>
             </ul>
           </div>
 
@@ -35,7 +42,6 @@ export default function Footer() {
               <li><Link href="/publish">Publish Your Book</Link></li>
               <li><Link href="/author/dashboard">Author Dashboard</Link></li>
               <li><Link href="/publishing-agreement">Publishing Agreement</Link></li>
-              <li><Link href="/admin/publishing">Editorial Queue</Link></li>
             </ul>
           </div>
 
