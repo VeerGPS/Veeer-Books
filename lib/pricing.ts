@@ -24,6 +24,8 @@ export type Quote = {
   discount?: { kind: "coupon" | "referral"; code: string; percent: number; amount: number; label: string };
   couponError?: string;
   referralNote?: string;
+  /** Books removed because they're already in the customer's library. */
+  owned?: number[];
   total: number;
   referrerUserId?: string;
 };
@@ -96,10 +98,23 @@ async function checkReferral(refCode: string, userId?: string) {
 }
 
 export async function quoteCart(opts: { items: number[]; couponCode?: string; refCode?: string; userId?: string }): Promise<Quote> {
-  const ids = Array.from(new Set((opts.items || []).map(Number).filter((n) => Number.isFinite(n) && n > 0))).slice(0, 100);
+  let ids = Array.from(new Set((opts.items || []).map(Number).filter((n) => Number.isFinite(n) && n > 0))).slice(0, 100);
+
+  // Never charge for a book the customer already owns.
+  let owned: number[] = [];
+  if (opts.userId && Types.ObjectId.isValid(opts.userId) && ids.length) {
+    try {
+      await connectDB();
+      const u: any = await User.findById(opts.userId, { purchasedBooks: 1 }).lean();
+      const have: number[] = u?.purchasedBooks || [];
+      owned = ids.filter((id) => have.includes(id));
+      ids = ids.filter((id) => !have.includes(id));
+    } catch { /* if the lookup fails, price normally */ }
+  }
+
   const lines = ids.length ? await loadBooks(ids) : [];
   const subtotal = r2(lines.reduce((s, l) => s + l.price, 0));
-  const quote: Quote = { lines, subtotal, total: subtotal };
+  const quote: Quote = { lines, subtotal, total: subtotal, ...(owned.length ? { owned } : {}) };
   if (!lines.length) return quote;
 
   // Best matching bundle (largest saving) whose books are all in the cart.

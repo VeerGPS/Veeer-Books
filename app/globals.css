@@ -1300,3 +1300,8 @@ footer .gift-inline .gift-fine { color: inherit; opacity: .6; }
 .footer-gift .gift-inline p, .footer-gift .gift-fine { color: #d6d3d1; opacity: 1; }
 .footer-gift .gift-inline b { color: #fff; }
 .refer .linklike { border: 0; background: none; padding: 0 .2rem; color: #8a5a12; font-weight: 700; cursor: pointer; font: inherit; text-decoration: underline; }
+
+/* Owned book on product page */
+.owned-box { display: grid; gap: .6rem; margin-top: 1.5rem; }
+.owned-note { color: #15803d; font-weight: 700; font-size: .95rem; }
+.owned-read { width: 100%; padding: .95rem 1.5rem; font-size: 1.1rem; font-weight: 800; text-align: center; box-shadow: 0 4px 14px rgba(197,160,89,.4); }

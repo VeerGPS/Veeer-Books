@@ -10,9 +10,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type CartContextValue = {
   items: number[];
@@ -29,6 +31,9 @@ const STORAGE_KEY = "cartItems";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<number[]>([]);
+  const { purchasedBooks } = useAuth();
+  const ownedRef = useRef<number[]>([]);
+  ownedRef.current = purchasedBooks;
 
   useEffect(() => {
     try {
@@ -48,7 +53,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Books already in the reader's library can never go into the cart.
+  useEffect(() => {
+    if (!purchasedBooks.length) return;
+    setItems((prev) => {
+      const next = prev.filter((id) => !purchasedBooks.includes(id));
+      if (next.length === prev.length) return prev;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [purchasedBooks]);
+
   const add = useCallback((id: number) => {
+    if (ownedRef.current.includes(id)) return;
     setItems((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
@@ -61,7 +78,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addMultiple = useCallback((ids: number[]) => {
     setItems((prev) => {
-      const uniqueNew = ids.filter((id) => !prev.includes(id));
+      const uniqueNew = ids.filter((id) => !prev.includes(id) && !ownedRef.current.includes(id));
       if (uniqueNew.length === 0) return prev;
       const next = [...prev, ...uniqueNew];
       try {

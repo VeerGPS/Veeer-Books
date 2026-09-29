@@ -3,10 +3,24 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProductActions({ bookId, slug }: { bookId: number; slug: string }) {
   const router = useRouter();
   const { add, hasItem } = useCart();
+  const { purchasedBooks, isReady } = useAuth();
+
+  // Already in the reader's library: one clear action instead of buy / cart / preview.
+  if (isReady && purchasedBooks.includes(bookId)) {
+    return (
+      <div className="owned-box">
+        <div className="owned-note">✓ This book is in your library</div>
+        <Link href={`/reader/${slug}`} className="btn btn-primary owned-read">
+          📖 Read Now
+        </Link>
+      </div>
+    );
+  }
 
   const handleBuyNow = () => {
     if (!hasItem(bookId)) {

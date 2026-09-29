@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
 
     const quote = await quoteCart({ items, couponCode, refCode, userId: auth.userId });
     if (!quote.lines.length) {
-      return NextResponse.json({ error: "These books are no longer available." }, { status: 400 });
+      return NextResponse.json(
+        { error: quote.owned?.length ? "You already own these books — find them in My Library." : "These books are no longer available." },
+        { status: 400 }
+      );
     }
     if (quote.total < 1) {
       return NextResponse.json({ error: "Cart total must be at least ₹1 to process checkout." }, { status: 400 });

@@ -79,12 +79,19 @@ export default function CartPage() {
         body: JSON.stringify({ items, couponCode, refCode }),
       })
         .then((r) => r.json())
-        .then((j) => { if (alive && j.quote) setQuote(j.quote); })
+        .then((j) => {
+          if (!alive || !j.quote) return;
+          setQuote(j.quote);
+          if (j.quote.owned?.length) {
+            addPurchasedBooks(j.quote.owned);
+            j.quote.owned.forEach((id: number) => remove(id));
+          }
+        })
         .catch(() => {})
         .finally(() => alive && setQuoting(false));
     }, 150);
     return () => { alive = false; clearTimeout(t); };
-  }, [items, couponCode, refCode, token]);
+  }, [items, couponCode, refCode, token, addPurchasedBooks, remove]);
 
   const cartBooks = catalog.filter((b) => items.includes(b.id));
   const priceOf = (id: number) => quote?.lines.find((l) => l.id === id);
