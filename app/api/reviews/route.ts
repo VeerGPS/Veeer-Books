@@ -1,5 +1,5 @@
 // GET  /api/reviews?bookId=1        — published reviews + summary
-// POST /api/reviews {bookId, rating, title, body} — owners of the book only (one review each, editable)
+// POST /api/reviews {bookId, rating, title, body} — any signed-in reader, one review each (editable); owners are marked verified
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { connectDB } from "@/lib/mongoose";
@@ -40,15 +40,14 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const user: any = await User.findById(auth.userId, { fullName: 1, purchasedBooks: 1 }).lean();
     if (!user) return NextResponse.json({ error: "Account not found" }, { status: 404 });
-    if (!(user.purchasedBooks || []).includes(bookId)) {
-      return NextResponse.json({ error: "Only readers who have this book in their library can review it." }, { status: 403 });
-    }
+    // Anyone signed in can review; readers who own the book get a "Verified reader" badge.
+    const verified = (user.purchasedBooks || []).includes(bookId);
 
     const existing: any = await Review.findOne({ bookId, userId: auth.userId }).lean();
     await Review.updateOne(
       { bookId, userId: auth.userId },
       {
-        $set: { rating, title, body, name: displayName(user.fullName), verified: true, ...(existing?.status === "hidden" ? {} : { status: "published" }) },
+        $set: { rating, title, body, name: displayName(user.fullName), verified, ...(existing?.status === "hidden" ? {} : { status: "published" }) },
       },
       { upsert: true }
     );

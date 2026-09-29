@@ -30,7 +30,7 @@ if (!global._mongooseCache) global._mongooseCache = cache;
 // When the database is unreachable we remember the failure for a short time so
 // every page request doesn't sit waiting for another connection timeout before
 // falling back to the built-in catalogue. (This was a major cause of slow pages.)
-const FAILURE_BACKOFF_MS = 30_000;
+const FAILURE_BACKOFF_MS = 10_000;
 let lastFailureAt = 0;
 
 export async function connectDB(): Promise<typeof mongoose> {
@@ -48,8 +48,8 @@ export async function connectDB(): Promise<typeof mongoose> {
     cache.promise = mongoose
       .connect(MONGO_URI, {
         bufferCommands: false,
-        serverSelectionTimeoutMS: 5000, // fail fast instead of the 30s default
-        connectTimeoutMS: 8000,
+        serverSelectionTimeoutMS: 10000, // enough for a cold Atlas connection, still far below the 30s default
+        connectTimeoutMS: 10000,
         maxPoolSize: 10,
       })
       .then((m) => {

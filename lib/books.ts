@@ -365,46 +365,49 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
 // Everything except the (potentially huge) HTML body — listings never need it.
 const LIST_PROJECTION = { htmlContent: 0, __v: 0 } as const;
 
+// IMPORTANT: database errors are thrown *inside* the cached function so a
+// temporary DB hiccup is never cached. (Previously the built-in fallback
+// catalogue — with its original prices — was cached for a minute and baked
+// into pages, which looked like admin price changes "reverting".)
 const loadAllBooks = unstable_cache(
   async (): Promise<Book[]> => {
-    try {
-      await connectDB();
-      const docs = await BookModel.find({ isActive: true }, LIST_PROJECTION).sort({ id: 1 }).lean();
-      if (docs && docs.length > 0) {
-        return docs.map((d) => toBook(d as BookDoc, getBookById((d as BookDoc).id)));
-      }
-    } catch (err) {
-      console.warn("MongoDB fetch failed in getAllBooks, using static catalog:", (err as Error).message);
+    await connectDB();
+    const docs = await BookModel.find({ isActive: true }, LIST_PROJECTION).sort({ id: 1 }).lean();
+    if (docs && docs.length > 0) {
+      return docs.map((d) => toBook(d as BookDoc, getBookById((d as BookDoc).id)));
     }
     return BOOKS;
   },
-  ["all-books-v2"],
+  ["all-books-v3"],
   { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG] }
 );
 
-/** All active books for listings (cached; no HTML body). */
-export const getAllBooks = cache(() => loadAllBooks());
+/** All active books for listings (cached; no HTML body). Falls back to the built-in catalogue, uncached, if the DB is down. */
+export const getAllBooks = cache(async (): Promise<Book[]> => {
+  try {
+    return await loadAllBooks();
+  } catch (err) {
+    console.warn("MongoDB fetch failed in getAllBooks, using static catalog (not cached):", (err as Error).message);
+    return BOOKS;
+  }
+});
 
 const loadBookBySlug = unstable_cache(
   async (slug: string, withHtml: boolean): Promise<Book | null> => {
     const localBook = getBookBySlug(slug);
-    try {
-      await connectDB();
-      const doc = await BookModel.findOne(
-        { $or: [{ slug }, { id: localBook?.id ?? -1 }], isActive: true },
-        withHtml ? { __v: 0 } : LIST_PROJECTION
-      ).lean();
-      if (doc) {
-        const book = toBook(doc as BookDoc, localBook, slug);
-        if (withHtml) book.htmlContent = await resolveHtmlContent((doc as BookDoc).htmlContent || localBook?.htmlContent);
-        return book;
-      }
-    } catch (error) {
-      console.warn("MongoDB fetch failed in getBookBySlugFromDB, using static catalog:", (error as Error).message);
+    await connectDB(); // throws on DB errors so they are never cached
+    const doc = await BookModel.findOne(
+      { $or: [{ slug }, { id: localBook?.id ?? -1 }], isActive: true },
+      withHtml ? { __v: 0 } : LIST_PROJECTION
+    ).lean();
+    if (doc) {
+      const book = toBook(doc as BookDoc, localBook, slug);
+      if (withHtml) book.htmlContent = await resolveHtmlContent((doc as BookDoc).htmlContent || localBook?.htmlContent);
+      return book;
     }
     return localBook ?? null;
   },
-  ["book-by-slug-v2"],
+  ["book-by-slug-v3"],
   { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG] }
 );
 
@@ -414,8 +417,14 @@ const loadBookBySlug = unstable_cache(
  * Pass `withHtml` only where the book's HTML body is actually rendered.
  */
 export const getBookBySlugFromDB = cache(
-  async (slug: string, withHtml = false): Promise<Book | undefined> =>
-    (await loadBookBySlug(slug, withHtml)) ?? undefined
+  async (slug: string, withHtml = false): Promise<Book | undefined> => {
+    try {
+      return (await loadBookBySlug(slug, withHtml)) ?? undefined;
+    } catch (error) {
+      console.warn("MongoDB fetch failed in getBookBySlugFromDB, using static catalog (not cached):", (error as Error).message);
+      return getBookBySlug(slug);
+    }
+  }
 );
 
 /** Small, client-safe shape for listings sent to the browser. */

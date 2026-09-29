@@ -30,6 +30,9 @@ export default function BookReviews({ bookId, bookTitle, initialSummary, initial
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const owns = purchasedBooks.includes(bookId);
+  const [wantsToReview, setWantsToReview] = useState(false);
+  // After signing in from the "Rate & review" button, open the form straight away.
+  useEffect(() => { if (isLoggedIn && wantsToReview) { setOpen(true); setWantsToReview(false); } }, [isLoggedIn, wantsToReview]);
 
   const refresh = () =>
     fetch(`/api/reviews?bookId=${bookId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
@@ -74,12 +77,12 @@ export default function BookReviews({ bookId, bookTitle, initialSummary, initial
   return (
     <section className="reviews" id="reviews" aria-labelledby="reviews-h">
       <div className="reviews-head">
-        <h2 id="reviews-h">Reader reviews</h2>
-        {isLoggedIn && owns ? (
-          <button className="btn btn-outline btn-sm" onClick={() => setOpen((v) => !v)}>{mine ? "Edit your review" : "Write a review"}</button>
-        ) : !isLoggedIn ? (
-          <button className="btn btn-outline btn-sm" onClick={() => show("login")}>Sign in to review</button>
-        ) : null}
+        <h2 id="reviews-h">Ratings &amp; reviews</h2>
+        {isLoggedIn ? (
+          <button className="btn btn-primary btn-sm" onClick={() => setOpen((v) => !v)}>{mine ? "Edit your review" : "★ Write a review"}</button>
+        ) : (
+          <button className="btn btn-primary btn-sm" onClick={() => { setWantsToReview(true); show("login"); }}>★ Rate &amp; review</button>
+        )}
       </div>
 
       {summary.count > 0 ? (
@@ -100,7 +103,7 @@ export default function BookReviews({ bookId, bookTitle, initialSummary, initial
           </div>
         </div>
       ) : (
-        <p className="muted">No reviews yet.{owns ? " Be the first to share what you thought!" : ` Reviews come from readers who own ${bookTitle}.`}</p>
+        <p className="muted">No reviews yet — be the first to rate <b>{bookTitle}</b>!</p>
       )}
 
       {open ? (
@@ -114,6 +117,7 @@ export default function BookReviews({ bookId, bookTitle, initialSummary, initial
           <input className="gift-input" placeholder="Headline (optional)" value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
           <textarea className="gift-input review-body" placeholder="What did you like? Who would you recommend it to?" value={body} maxLength={3000} rows={4} onChange={(e) => setBody(e.target.value)} />
           {msg ? <p className="gift-err">{msg}</p> : null}
+          {!owns ? <p className="muted" style={{ fontSize: ".85rem", margin: 0 }}>Readers who buy the book get a ✓ Verified reader badge on their review.</p> : null}
           <div style={{ display: "flex", gap: ".5rem" }}>
             <button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : mine ? "Update review" : "Post review"}</button>
             <button type="button" className="btn btn-outline" onClick={() => setOpen(false)}>Cancel</button>

@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { connectDB } from "@/lib/mongoose";
 import { BundleModel } from "@/models";
-import { getAllBooks, toSummary, type BookSummary } from "@/lib/books";
+import { BOOKS_CACHE_TAG, getAllBooks, toSummary, type BookSummary } from "@/lib/books";
 
 export const runtime = "nodejs";
-// Bundle offers change rarely: serve from cache and refresh every minute.
-export const revalidate = 60;
+// Dynamic so edits show at once; the data below is cached and invalidated on every admin save.
+export const dynamic = "force-dynamic";
 
 const loadBundles = unstable_cache(
   async () => {
@@ -37,7 +37,7 @@ const loadBundles = unstable_cache(
     });
   },
   ["active-bundles-v2"],
-  { revalidate: 60, tags: ["bundles"] }
+  { revalidate: 60, tags: ["bundles", BOOKS_CACHE_TAG] }
 );
 
 export async function GET() {
@@ -45,7 +45,7 @@ export async function GET() {
     const bundles = await loadBundles();
     return NextResponse.json(
       { bundles },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+      { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=20" } }
     );
   } catch (error) {
     console.error("GET /api/bundles error:", (error as Error).message);

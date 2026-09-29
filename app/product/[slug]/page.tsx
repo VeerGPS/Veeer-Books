@@ -242,8 +242,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </article>
         </section>
 
-        <BookReviews bookId={book.id} bookTitle={book.title} initialSummary={reviewSummary} initialReviews={reviews} />
-
         {/* ─── WHAT YOU'LL GET & WHO IS THIS FOR (2 Grid Cards) ─── */}
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.75rem", marginBottom: "3rem" }}>
           
@@ -343,6 +341,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </Link>
         </section>
 
+        {/* ─── Ratings & reviews (bottom of every book page) ─── */}
+        <BookReviews bookId={book.id} bookTitle={book.title} initialSummary={reviewSummary} initialReviews={reviews} />
       </div>
     </main>
   );

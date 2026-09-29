@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { BOOKS_CACHE_TAG } from "@/lib/books";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
@@ -188,6 +188,7 @@ export async function POST(req: NextRequest) {
     });
 
     revalidateTag(BOOKS_CACHE_TAG);
+    revalidatePath("/", "layout"); // refresh every cached page that shows prices
     return NextResponse.json({ book, message: "Book added successfully" });
   } catch (error) {
     console.error("Admin create book error:", error);
@@ -351,6 +352,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
     revalidateTag(BOOKS_CACHE_TAG);
+    revalidatePath("/", "layout"); // refresh every cached page that shows prices
     return NextResponse.json({ book, message: "Book updated successfully" });
   } catch (error) {
     console.error("Admin update book error:", error);
@@ -380,6 +382,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
     revalidateTag(BOOKS_CACHE_TAG);
+    revalidatePath("/", "layout"); // refresh every cached page that shows prices
     return NextResponse.json({ message: "Book deleted successfully" });
   } catch (error) {
     console.error("Admin delete book error:", error);
