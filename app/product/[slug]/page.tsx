@@ -168,7 +168,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
           {/* Right Column: Title, Hook, Price, CTAs */}
           <article>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.6rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", marginBottom: "0.6rem" }}>
               <span className="meta-pill" style={{ backgroundColor: "#fef3c7", color: "#b45309", fontWeight: 700 }}>
                 {book.genre}
               </span>
