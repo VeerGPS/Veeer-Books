@@ -602,6 +602,9 @@ export default function AdminPage() {
             <Link href="/admin/publishing/sales" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
               Marketplace Sales
             </Link>
+            <Link href="/admin/audience" className="btn btn-sm" style={{ backgroundColor: "#1c1917", color: "#ffffff", fontWeight: 700 }}>
+              Free book &amp; customers
+            </Link>
             <Link href="/admin/reviews" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
               Reviews
             </Link>

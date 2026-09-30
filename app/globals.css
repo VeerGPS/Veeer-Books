@@ -1335,3 +1335,42 @@ html[data-cur="USD"] .px-pending, html[data-cur="GBP"] .px-pending { visibility:
 .cur-switch select { font: 600 .85rem var(--sans); border: 1px solid #e2ddd3; background: #fff; color: #1a1a1a; border-radius: 8px; padding: .3rem .45rem; cursor: pointer; }
 .cur-switch select:focus { outline: 2px solid rgba(197,160,89,.4); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+/* ─── Admin: free book & customers ─────────────────────────── */
+.aud { max-width: 1120px; padding: 2.5rem 16px 4rem; }
+.aud-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.aud-head h1 { font-family: var(--serif); margin: 0 0 .25rem; }
+.aud-head p { color: #57534e; margin: 0; }
+.aud-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
+.aud-kpis > div { background: #fff; border: 1px solid #e6e1d6; border-radius: 14px; padding: 1rem 1.1rem; display: grid; gap: .2rem; }
+.aud-kpis span { font-size: .8rem; font-weight: 700; color: #57534e; }
+.aud-kpis b { font-size: 1.7rem; font-family: var(--serif); }
+.aud-kpis small { color: #8a847b; font-size: .8rem; }
+.aud-row { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.aud-card { background: #fff; border: 1px solid #e6e1d6; border-radius: 14px; padding: 1.1rem 1.2rem; }
+.aud-card h3 { margin: 0 0 .75rem; font-size: 1rem; }
+.aud-card h3 small { color: #8a847b; font-weight: 400; margin-left: .35rem; }
+.aud-bars { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 140px; border-bottom: 1px solid #e6e1d6; }
+.aud-bar-slot { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.aud-bar { width: 100%; background: #b7791f; border-radius: 4px 4px 0 0; min-height: 0; transition: opacity .12s; }
+.aud-tip { position: absolute; top: -6px; transform: translate(-50%, -100%); background: #1c1917; color: #fff; font-size: .78rem; padding: .35rem .55rem; border-radius: 6px; white-space: nowrap; pointer-events: none; display: grid; }
+.aud-axis { display: flex; justify-content: space-between; font-size: .75rem; color: #8a847b; margin-top: .35rem; }
+.aud-sources { list-style: none; padding: 0; margin: 0; }
+.aud-sources li { display: flex; justify-content: space-between; padding: .45rem 0; border-bottom: 1px solid #f1efea; font-size: .92rem; }
+.aud-sources li:last-child { border-bottom: 0; }
+.aud-tools { display: flex; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.aud-tabs { display: flex; gap: .35rem; flex-wrap: wrap; }
+.aud-tabs button { border: 1px solid #e6e1d6; background: #faf8f5; border-radius: 999px; padding: .4rem .85rem; font: 600 .85rem var(--sans); cursor: pointer; }
+.aud-tabs button.on { background: #1c1917; color: #fff; border-color: #1c1917; }
+.aud-tools-r { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.aud-tools-r input, .aud-tools-r select { height: 34px; border: 1px solid #d9d3c7; border-radius: 8px; padding: 0 .6rem; font: .88rem var(--sans); background: #fff; }
+.aud-table-wrap { overflow-x: auto; }
+.aud-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.aud-table th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #8a847b; padding: .55rem .6rem; border-bottom: 1px solid #e6e1d6; white-space: nowrap; }
+.aud-table td { padding: .6rem; border-bottom: 1px solid #f1efea; white-space: nowrap; }
+.aud-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.aud-table a { color: #8a5a12; }
+.aud-pill { display: inline-block; margin-left: .35rem; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #f1efea; color: #57534e; }
+.aud-pill.good { margin-left: 0; background: #e8f6ec; color: #15803d; }
+.aud-pill.off { background: #fdecec; color: #b91c1c; }
+@media (max-width: 860px) { .aud-kpis { grid-template-columns: 1fr 1fr; } .aud-row { grid-template-columns: 1fr; } }
