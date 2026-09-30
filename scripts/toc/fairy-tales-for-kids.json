@@ -1,42 +1,31 @@
 [
- {
-  "t": "Cover",
-  "p": 1,
-  "l": 0
- },
- {
-  "t": "Contents",
-  "p": 2,
-  "l": 0
- },
- {
-  "t": "1 · The Shepherd’s Award",
-  "p": 3,
-  "l": 0
- },
- {
-  "t": "2 · Aladdin: The Magic Lamp",
-  "p": 9,
-  "l": 0
- },
- {
-  "t": "3 · Mullah Nasrudin’s Hilarious Mishap",
-  "p": 14,
-  "l": 0
- },
- {
-  "t": "4 · The Crocodile and the Monkey",
-  "p": 18,
-  "l": 0
- },
- {
-  "t": "5 · Lord Krishna’s Birth",
-  "p": 22,
-  "l": 0
- },
- {
-  "t": "6 · Gulliver’s Travels",
-  "p": 26,
-  "l": 0
- }
+ {"t": "Cover", "p": 1, "l": 0},
+ {"t": "This Book Belongs To", "p": 3, "l": 0},
+ {"t": "Hello, Story Friends!", "p": 4, "l": 0},
+ {"t": "Contents", "p": 5, "l": 0},
+ {"t": "Part 1 · Magic & Adventure", "p": 6, "l": 0},
+ {"t": "1 · The Shepherd’s Treasure", "p": 7, "l": 1},
+ {"t": "2 · Aladdin and the Magic Lamp", "p": 11, "l": 1},
+ {"t": "3 · The Night Little Krishna Was Born", "p": 15, "l": 1},
+ {"t": "4 · Gulliver’s Amazing Travels", "p": 19, "l": 1},
+ {"t": "Part 2 · Clever Animals", "p": 23, "l": 0},
+ {"t": "5 · The Monkey and the Crocodile", "p": 24, "l": 1},
+ {"t": "6 · The Lion and the Mouse", "p": 28, "l": 1},
+ {"t": "7 · The Tortoise and the Hare", "p": 31, "l": 1},
+ {"t": "8 · The Thirsty Crow", "p": 34, "l": 1},
+ {"t": "9 · The Clever Rabbit and the Lion", "p": 37, "l": 1},
+ {"t": "10 · The Goose with the Golden Eggs", "p": 41, "l": 1},
+ {"t": "Part 3 · Wise & Witty", "p": 45, "l": 0},
+ {"t": "11 · Mullah Nasrudin and the Magic Mango", "p": 46, "l": 1},
+ {"t": "12 · Birbal Counts the Crows", "p": 50, "l": 1},
+ {"t": "13 · Tenali Raman and the Garden Thieves", "p": 53, "l": 1},
+ {"t": "14 · The Blind Men and the Elephant", "p": 57, "l": 1},
+ {"t": "Part 4 · Brand-New Bedtime Tales", "p": 61, "l": 0},
+ {"t": "15 · Chotu the Little Seed", "p": 62, "l": 1},
+ {"t": "16 · Tara and the Littlest Star", "p": 65, "l": 1},
+ {"t": "Fun Pages · Colouring Corner", "p": 68, "l": 0},
+ {"t": "Story Match Quiz", "p": 80, "l": 1},
+ {"t": "Draw Your Favourite Character", "p": 81, "l": 1},
+ {"t": "My Story Stars & About the Author", "p": 82, "l": 1},
+ {"t": "Loved These Stories?", "p": 83, "l": 0}
 ]

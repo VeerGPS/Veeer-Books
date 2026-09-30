@@ -17,7 +17,8 @@
   // After the last page every reader gets an end card: "preview" (buy the book) or "finished" (what to read next).
   var END_KIND = PREVIEW && B.pages > TOTAL ? 'preview' : 'finished';
   var RATIO = (B.h && B.w) ? B.h / B.w : 1.5;          // page height / width
-  var DIR = B.slug + '/';
+  // B.dir lets a new edition use a fresh folder (page images are cached for a year).
+  var DIR = (B.dir || B.slug) + '/';
   var FRAMED = window.parent !== window;
   var ZMIN = 0.5, ZMAX = 4;
 
@@ -31,7 +32,7 @@
     get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
-  var K_BOOK = 'vsr:book:' + B.slug, K_PREFS = 'vsr:prefs';
+  var K_BOOK = 'vsr:book:' + B.slug + (B.ed ? ':e' + B.ed : ''), K_PREFS = 'vsr:prefs';
 
   // ── Icons ─────────────────────────────────────────────
   var I = {

@@ -160,24 +160,25 @@ export const BOOKS: Book[] = [
   {
     id: 4,
     slug: "fairy-tales-for-kids",
-    title: "Fairy Tales: For Kids",
+    title: "Fairy Tales for Kids",
     author: "Veer Sukhadiya",
     price: 99,
     actualPrice: 149,
     color: "#e67e22",
     accent: "#1e1e2e",
     genre: "Children's Literature",
-    pages: 29,
-    cover: "/images/fairy-tales.jpg",
+    pages: 84,
+    cover: "/images/fairy-tales-cover.jpg",
     reader: "/readers/fairy-tales-for-kids.html",
     pdf: "/books/Fairy%20Tales.pdf",
-    hook: "Enchanting bedtime stories designed to ignite young imaginations and teach positive values.",
+    hook: "Sixteen magical, fully illustrated stories from around the world — perfect for bedtime.",
     description:
-      "A colorful collection of child-friendly stories designed to entertain, inspire, and build imagination. Packed with memorable characters, moral lessons, and delightful storytelling for young readers.",
+      "The new illustrated edition: 16 magical stories from around the world, from Aladdin and the Lion and the Mouse to Birbal, Tenali Raman and two brand-new bedtime tales. Every story ends with a Story Treasure box — the lesson, questions to talk about and a Magic Word to learn — plus colouring pages, a story quiz and a reading tracker. For ages 4–8 and the grown-ups who read with them.",
     whatYouGet: [
-      "29-page illustrated children's story collection with six classic tales",
-      "Interactive Web Browser Reader",
-      "Bedtime story format suitable for independent reading or family storytime",
+      "New 84-page illustrated edition with 16 stories in four parts",
+      "A Story Treasure box after every tale: the lesson, two talk-about questions and a Magic Word",
+      "12 colouring pages, a Story Match Quiz and a “My Story Stars” reading tracker",
+      "Read on any device in the fast web reader, with night and sepia modes",
     ],
     whoIsThisFor: [
       "Parents and teachers looking for wholesome, engaging bedtime stories",
@@ -286,7 +287,25 @@ function resolveBookPrice(doc: { sellingPrice?: number; price?: number; actualPr
   return 0;
 }
 
+// Covers replaced by a new edition (the old image is still in the database record).
+const REPLACED_COVERS: Record<string, string> = {
+  "/images/fairy-tales.jpg": "/images/fairy-tales-cover.jpg",
+  "/images/fairy-tales-2e.jpg": "/images/fairy-tales-cover.jpg",
+};
+
+// Old text still stored in the database for books that now have a new edition.
+// Only exact old values are replaced, so later admin edits always win.
+const REPLACED_TEXT: Record<string, true> = {
+  "Fairy Tales: For Kids": true,
+  "A colorful collection of child-friendly stories designed to entertain, inspire, and build imagination. Packed with memorable characters, moral lessons, and delightful storytelling for young readers.": true,
+};
+function freshText(dbValue: string | undefined, localValue: string | undefined) {
+  if (dbValue && REPLACED_TEXT[dbValue.trim()] && localValue) return localValue;
+  return dbValue || localValue;
+}
+
 function resolveBookCover(cover?: string): string {
+  if (cover && REPLACED_COVERS[cover]) return REPLACED_COVERS[cover];
   if (cover && cover.trim() && cover !== "/images/default-book.png") return cover;
   return "/images/default-book.svg";
 }
@@ -332,7 +351,7 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
   return {
     id: d.id || local?.id || 99,
     slug,
-    title: d.title || local?.title || "Untitled Book",
+    title: freshText(d.title, local?.title) || "Untitled Book",
     author: d.author || local?.author || "Veer Sukhadiya",
     price: priceVal || local?.price || 149,
     actualPrice: actualPriceVal,
@@ -344,7 +363,7 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
     cover: resolveBookCover(d.cover || local?.cover),
     reader: resolveBookReader(d.reader, slug, d.title),
     pdf: d.pdf || local?.pdf || "/books/default-book.pdf",
-    description: d.description || local?.description || "",
+    description: freshText(d.description, local?.description) || "",
     hook: local?.hook,
     whatYouGet: local?.whatYouGet || [
       "Fast web reader with contents, search, bookmarks and night/sepia modes",
