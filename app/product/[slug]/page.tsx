@@ -228,7 +228,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         </section>
 
         {/* ─── WHAT YOU'LL GET & WHO IS THIS FOR (2 Grid Cards) ─── */}
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.75rem", marginBottom: "3rem" }}>
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", gap: "1.75rem", marginBottom: "3rem" }}>
           
           {/* What You'll Get Card */}
           <div style={{ backgroundColor: "#ffffff", padding: "1.75rem", borderRadius: "16px", border: "1px solid #e2ddd3" }}>

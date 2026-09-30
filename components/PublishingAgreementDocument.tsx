@@ -128,7 +128,7 @@ export default function PublishingAgreementDocument({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
             gap: "0.4rem 1rem",
             fontSize: "0.88rem",
           }}

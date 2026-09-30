@@ -10,7 +10,7 @@ export default function ProductPrice({ book }: { book: { price: number; actualPr
   const save = p.actual ? p.actual - p.price : 0;
   const pct = p.actual ? Math.round((save / p.actual) * 100) : 0;
   return (
-    <div className={`px${ready ? "" : " px-pending"}`} style={{ display: "flex", alignItems: "baseline", gap: "0.4rem 0.75rem", marginTop: "0.25rem", flexWrap: "wrap", whiteSpace: "nowrap" }}>
+    <div className={`px${ready ? "" : " px-pending"}`} style={{ display: "flex", alignItems: "baseline", gap: "0.4rem 0.75rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
       <span style={{ fontSize: "2.2rem", fontWeight: 800, color: "#1a1a1a", fontFamily: "var(--serif)" }}>{fmt(p.price)}</span>
       {p.actual ? <span style={{ fontSize: "1.2rem", color: "#94a3b8", textDecoration: "line-through" }}>{fmt(p.actual)}</span> : null}
       {pct > 0 ? (

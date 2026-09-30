@@ -144,7 +144,7 @@ export default function BundlesPage() {
                 key={bundle._id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))",
                   gap: "2.25rem",
                   padding: "2.25rem",
                   borderRadius: "20px",

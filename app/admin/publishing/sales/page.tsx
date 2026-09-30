@@ -93,7 +93,7 @@ export default function AdminPublishingSalesPage() {
         </div>
 
         {/* Metrics Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
           <div style={{ backgroundColor: "#ffffff", padding: "1.5rem", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
             <span style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Total Marketplace Sales</span>
             <div style={{ fontSize: "2rem", fontWeight: 800, marginTop: "0.25rem" }}>{metrics?.totalSalesCount || 0}</div>

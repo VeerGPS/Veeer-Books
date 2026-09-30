@@ -612,7 +612,7 @@ export default function AdminPage() {
         </div>
 
         {/* ─── Metrics Cards ─── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
           <div style={{ padding: "1.5rem", borderRadius: "12px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", textAlign: "center" }}>
             <span style={{ fontSize: "0.8rem", color: "#475569", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>Total Books</span>
             <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "#b45309", marginTop: "0.25rem" }}>{books.length}</div>
@@ -883,7 +883,7 @@ export default function AdminPage() {
 
           <div style={{ marginBottom: "1.25rem" }}>
             <label style={labelStyle}>Select Books Included in Bundle * ({bundleForm.selectedBookIds.length} selected)</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "0.75rem", maxHeight: 220, overflowY: "auto", border: "1px solid #cbd5e1", padding: "1rem", borderRadius: "8px", backgroundColor: "#ffffff" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(240px, 100%), 1fr))", gap: "0.75rem", maxHeight: 220, overflowY: "auto", border: "1px solid #cbd5e1", padding: "1rem", borderRadius: "8px", backgroundColor: "#ffffff" }}>
               {books.map((b) => {
                 const isSelected = bundleForm.selectedBookIds.includes(b.id);
                 return (
