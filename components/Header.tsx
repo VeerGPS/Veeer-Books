@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import CurrencySwitcher from "@/components/CurrencySwitcher";
 import Image from "next/image";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -126,6 +127,7 @@ export default function Header() {
                 </>
               )}
 
+              <CurrencySwitcher />
               <Link
                 href="/cart"
                 className="btn btn-outline btn-sm"

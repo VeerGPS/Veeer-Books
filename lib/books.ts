@@ -46,6 +46,8 @@ export type Book = {
   launchEndsAt?: string;
   /** Regular price to return to after the launch offer. */
   regularPrice?: number;
+  /** Optional admin-set prices for US / UK visitors. */
+  foreign?: { USD?: number; GBP?: number };
 };
 
 export const DEFAULT_AUTHOR_BIO =
@@ -359,6 +361,9 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
     highlights: d.highlights && d.highlights.length > 0 ? d.highlights : local?.highlights,
     launchEndsAt: launch?.endsAt,
     regularPrice: launch ? regular : undefined,
+    ...(Number(d.priceUSD) > 0 || Number(d.priceGBP) > 0
+      ? { foreign: { USD: Number(d.priceUSD) || undefined, GBP: Number(d.priceGBP) || undefined } }
+      : {}),
   };
 }
 
@@ -430,13 +435,14 @@ export const getBookBySlugFromDB = cache(
 /** Small, client-safe shape for listings sent to the browser. */
 export type BookSummary = Pick<
   Book,
-  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader" | "launchEndsAt"
+  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader" | "launchEndsAt" | "regularPrice" | "foreign"
 >;
 
 export function toSummary(b: Book): BookSummary {
   return {
     id: b.id, slug: b.slug, title: b.title, author: b.author, price: b.price, actualPrice: b.actualPrice,
     color: b.color, genre: b.genre, pages: b.pages, cover: b.cover, reader: b.reader,
-    ...(b.launchEndsAt ? { launchEndsAt: b.launchEndsAt } : {}),
+    ...(b.launchEndsAt ? { launchEndsAt: b.launchEndsAt, regularPrice: b.regularPrice } : {}),
+    ...(b.foreign ? { foreign: b.foreign } : {}),
   };
 }

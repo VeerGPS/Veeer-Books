@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const auth = getOptionalAuth(req);
-    const { items, couponCode, refCode } = await req.json().catch(() => ({}));
-    const quote = await quoteCart({ items: Array.isArray(items) ? items : [], couponCode, refCode, userId: auth?.userId });
+    const { items, couponCode, refCode, currency } = await req.json().catch(() => ({}));
+    const quote = await quoteCart({ items: Array.isArray(items) ? items : [], couponCode, refCode, currency, userId: auth?.userId });
     const { referrerUserId, ...publicQuote } = quote;
     return NextResponse.json({ quote: publicQuote, referralApplied: Boolean(referrerUserId) });
   } catch (err) {

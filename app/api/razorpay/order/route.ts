@@ -15,33 +15,37 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB();
-    const { items, couponCode, refCode } = await req.json();
+    const { items, couponCode, refCode, currency } = await req.json();
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "No items selected in cart." }, { status: 400 });
     }
 
-    const quote = await quoteCart({ items, couponCode, refCode, userId: auth.userId });
+    const quote = await quoteCart({ items, couponCode, refCode, currency, userId: auth.userId });
     if (!quote.lines.length) {
       return NextResponse.json(
         { error: quote.owned?.length ? "You already own these books — find them in My Library." : "These books are no longer available." },
         { status: 400 }
       );
     }
-    if (quote.total < 1) {
-      return NextResponse.json({ error: "Cart total must be at least ₹1 to process checkout." }, { status: 400 });
+    const minimum = quote.currency === "INR" ? 1 : 0.5;
+    if (quote.total < minimum) {
+      return NextResponse.json({ error: "Cart total is below the minimum amount for checkout." }, { status: 400 });
     }
 
     const razorpay = getRazorpay();
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(quote.total * 100),
-      currency: "INR",
+      currency: quote.currency, // INR, or USD/GBP for international shoppers (needs Razorpay international payments)
       receipt: `rcpt_${Date.now()}`,
     });
 
     await Order.create({
       userId: auth.userId,
       amount: quote.total,
+      currencyPaid: quote.currency,
+      fxRate: quote.fxRate,
+      amountInr: Math.round(quote.total * quote.fxRate * 100) / 100,
       subtotal: quote.subtotal,
       discount: Math.round(((quote.bundle?.discount || 0) + (quote.discount?.amount || 0)) * 100) / 100,
       couponCode: quote.discount?.kind === "coupon" ? quote.discount.code : undefined,

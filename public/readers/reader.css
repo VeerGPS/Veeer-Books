@@ -174,3 +174,6 @@ kbd{font:12px ui-monospace,monospace;background:var(--panel-2);border:1px solid 
   #pct{display:none}
 }
 @media print{body{display:none}}
+.end-card .end-emoji{font-size:36px;line-height:1}
+.end-card .btn{min-width:230px;justify-content:center}
+.end-card.finished h2 i{font-style:italic}

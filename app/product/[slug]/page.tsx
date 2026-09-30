@@ -7,6 +7,7 @@ import ProductActions from "./ProductActions";
 import { canOptimize } from "@/lib/image";
 import ShareBar from "./ShareBar";
 import LaunchCountdown from "@/components/LaunchCountdown";
+import ProductPrice from "@/components/ProductPrice";
 import BookReviews, { Stars } from "@/components/BookReviews";
 import { getBookReviews } from "@/lib/reviews";
 import { SITE_NAME, absUrl, jsonLd } from "@/lib/site";
@@ -47,8 +48,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const book = await getBookBySlugFromDB(params.slug);
   if (!book) notFound();
 
-  const savingsINR = book.actualPrice && book.actualPrice > book.price ? book.actualPrice - book.price : 0;
-  const discountPct = book.actualPrice && book.actualPrice > book.price ? Math.round((savingsINR / book.actualPrice) * 100) : 0;
 
   const pageUrl = absUrl(`/product/${book.slug}`);
   const { summary: reviewSummary, reviews } = await getBookReviews(book.id);
@@ -218,22 +217,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
               <div style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
                 {book.launchEndsAt ? "Launch price" : "Digital Price"}
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem 0.75rem", marginTop: "0.25rem", flexWrap: "wrap", whiteSpace: "nowrap" }}>
-                <span style={{ fontSize: "2.2rem", fontWeight: 800, color: "#1a1a1a", fontFamily: "var(--serif)" }}>
-                  ₹{book.price.toFixed(2)}
-                </span>
-                {book.actualPrice && book.actualPrice > book.price ? (
-                  <span style={{ fontSize: "1.2rem", color: "#94a3b8", textDecoration: "line-through" }}>
-                    ₹{book.actualPrice.toFixed(2)}
-                  </span>
-                ) : null}
-                {discountPct > 0 ? (
-                  <span style={{ backgroundColor: "#dcfce7", color: "#15803d", padding: "3px 10px", borderRadius: "12px", fontSize: "0.8rem", fontWeight: 800 }}>
-                    SAVE {discountPct}% (₹{savingsINR.toFixed(0)} OFF)
-                  </span>
-                ) : null}
-              </div>
-              {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} regularPrice={book.regularPrice} /> : null}
+              <ProductPrice book={{ price: book.price, actualPrice: book.actualPrice, regularPrice: book.regularPrice, foreign: book.foreign }} />
+              {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} regular={book.regularPrice ? { price: book.regularPrice, foreign: book.foreign } : undefined} /> : null}
             </div>
 
             {/* Action Buttons: Buy Now, Add to Cart, Read Free Preview */}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getBookBySlugFromDB } from "@/lib/books";
 import PreviewIframeContainer from "./PreviewIframeContainer";
+import LovedIt from "./LovedIt";
 
 export async function generateMetadata({
   params,
@@ -42,6 +43,9 @@ export default async function DynamicReaderPage({
         bookId={book.id}
         bookSlug={book.slug}
         bookPrice={book.price}
+        bookGenre={book.genre}
+        bookRegularPrice={book.regularPrice}
+        bookForeign={book.foreign}
       />
     );
   }
@@ -79,6 +83,9 @@ export default async function DynamicReaderPage({
             <p style={{ lineHeight: 1.8, fontSize: "1.1rem", marginBottom: "1.5rem" }}>{book.description}</p>
           </div>
         )}
+        <div style={{ marginTop: "2.5rem" }}>
+          <LovedIt mode="finished" variant="inline" book={{ id: book.id, slug: book.slug, title: book.title, price: book.price, genre: book.genre, regularPrice: book.regularPrice, foreign: book.foreign }} />
+        </div>
       </div>
     </main>
   );

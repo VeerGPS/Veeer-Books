@@ -80,6 +80,8 @@ export interface IBook {
   publisherType?: "in_house" | "external_author";
   launchPrice?: number;
   launchEndsAt?: Date;
+  priceUSD?: number;
+  priceGBP?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,6 +113,9 @@ const bookSchema = new Schema<IBook>(
     publisherType: { type: String, enum: ["in_house", "external_author"], default: "in_house" },
     launchPrice: { type: Number, default: 0 },
     launchEndsAt: { type: Date },
+    // Optional prices for US / UK visitors (0 = convert from INR automatically).
+    priceUSD: { type: Number, default: 0 },
+    priceGBP: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -161,6 +166,11 @@ export interface IOrder {
   couponCode?: string;
   referralCode?: string;
   referrerUserId?: Types.ObjectId;
+  /** Currency the customer paid in; amount/subtotal/discount are in this currency. */
+  currencyPaid?: string;
+  /** INR per 1 unit of currencyPaid at checkout, and the INR equivalent of amount. */
+  fxRate?: number;
+  amountInr?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -185,6 +195,9 @@ const orderSchema = new Schema<IOrder>(
     couponCode: { type: String },
     referralCode: { type: String },
     referrerUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    currencyPaid: { type: String, default: "INR" },
+    fxRate: { type: Number, default: 1 },
+    amountInr: { type: Number },
   },
   { timestamps: true }
 );

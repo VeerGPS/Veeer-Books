@@ -90,12 +90,12 @@ function convert({ slug, title, author = "Veer Sukhadiya" }) {
 <meta name="robots" content="noindex">
 <title>${esc(title)} — ${esc(author)}</title>
 <link rel="preload" as="image" href="${slug}/p/001.${ext}" fetchpriority="high">
-<link rel="stylesheet" href="reader.css?v=3">
+<link rel="stylesheet" href="reader.css?v=4">
 </head>
 <body>
 <noscript>This reader needs JavaScript.</noscript>
 <script>window.BOOK = ${JSON.stringify(book).replace(/</g, "\\u003c")};</script>
-<script src="reader.js?v=3" defer></script>
+<script src="reader.js?v=4" defer></script>
 </body>
 </html>
 `;

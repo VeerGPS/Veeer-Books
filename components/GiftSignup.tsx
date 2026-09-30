@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EMAIL_RE, GIFT_BOOK } from "@/lib/gift";
 import { getRefCode } from "@/lib/referral-client";
 import { trackMarketplaceEvent } from "@/lib/analytics";
+import { Money } from "@/components/Price";
 
 export const GIFT_CLAIMED_KEY = "vsb_gift_claimed";
 
@@ -94,7 +95,7 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
         <Image src={GIFT_BOOK.cover} alt={`${GIFT_BOOK.title} cover`} width={180} height={270} sizes="180px" />
       </div>
       <div className="gift-body">
-        <span className="gift-badge">Free gift · worth ₹{GIFT_BOOK.price}</span>
+        <span className="gift-badge">Free gift · worth <Money inr={GIFT_BOOK.price} /></span>
         <h3>Read <i>{GIFT_BOOK.title}</i> free — the complete book</h3>
         <p>{GIFT_BOOK.pitch} Join our reading list and it’s yours instantly, on any device.</p>
         {form}

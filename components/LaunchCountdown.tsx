@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BookPriceText } from "@/components/Price";
+import type { ForeignOverride } from "@/lib/currency";
 
 function parts(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -9,7 +11,7 @@ function parts(ms: number) {
 }
 
 /** Live countdown for a launch price. Refreshes the page when the offer ends so the regular price shows. */
-export default function LaunchCountdown({ endsAt, regularPrice, compact = false }: { endsAt: string; regularPrice?: number; compact?: boolean }) {
+export default function LaunchCountdown({ endsAt, regular, compact = false }: { endsAt: string; regular?: { price: number; foreign?: ForeignOverride }; compact?: boolean }) {
   const router = useRouter();
   const end = new Date(endsAt).getTime();
   const [now, setNow] = useState<number | null>(null);
@@ -45,7 +47,7 @@ export default function LaunchCountdown({ endsAt, regularPrice, compact = false 
         <span><b>{pad(p.m)}</b><i>min</i></span>
         <span><b>{pad(p.s)}</b><i>sec</i></span>
       </div>
-      {regularPrice ? <div className="launch-after">Then ₹{regularPrice.toFixed(0)}</div> : null}
+      {regular ? <div className="launch-after">Then <BookPriceText book={regular} /></div> : null}
     </div>
   );
 }

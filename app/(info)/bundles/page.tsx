@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { BookPrice, bundleMoney } from "@/components/Price";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,6 +36,7 @@ export default function BundlesPage() {
   const router = useRouter();
   const { addMultiple } = useCart();
   const [bundles, setBundles] = useState<BundleOffer[]>([]);
+  const cur = useCurrency();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -129,10 +132,11 @@ export default function BundlesPage() {
         {/* Bundle Offers List */}
         <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
           {bundles.map((bundle) => {
-            const savingsINR = Math.max(0, bundle.originalPrice - bundle.bundlePrice);
+            const m = bundleMoney(cur, bundle);
+            const savingsINR = m.savings;
             const discountPct =
-              bundle.originalPrice > 0
-                ? Math.round((savingsINR / bundle.originalPrice) * 100)
+              m.original > 0
+                ? m.pct
                 : 0;
 
             return (
@@ -225,7 +229,7 @@ export default function BundlesPage() {
                             fontWeight: 800,
                           }}
                         >
-                          SAVE {discountPct}% (₹{savingsINR.toFixed(2)} OFF)
+                          SAVE {discountPct}% ({cur.fmt(savingsINR)} OFF)
                         </span>
                       ) : null}
                     </div>
@@ -285,7 +289,7 @@ export default function BundlesPage() {
                               {b.title}
                             </span>
                             <span style={{ color: "#a8a29e", fontSize: "0.8rem", textDecoration: "line-through" }}>
-                              ₹{(b.sellingPrice ?? b.price ?? 0).toFixed(2)}
+                              <BookPrice book={{ ...b, price: b.price ?? b.sellingPrice ?? 0 }} strike={false} />
                             </span>
                           </div>
                         ))}
@@ -311,11 +315,11 @@ export default function BundlesPage() {
                       </span>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem" }}>
                         <span style={{ fontSize: "1.85rem", fontWeight: 800, color: "#1c1917", fontFamily: "var(--sans)" }}>
-                          ₹{bundle.bundlePrice.toFixed(2)}
+                          {cur.fmt(m.price)}
                         </span>
-                        {bundle.originalPrice > bundle.bundlePrice ? (
+                        {m.original > m.price ? (
                           <span style={{ fontSize: "1rem", color: "#a8a29e", textDecoration: "line-through" }}>
-                            ₹{bundle.originalPrice.toFixed(2)}
+                            {cur.fmt(m.original)}
                           </span>
                         ) : null}
                       </div>

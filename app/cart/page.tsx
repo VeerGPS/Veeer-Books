@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Book } from "@/lib/books";
 import { clearRefCode, getRefCode } from "@/lib/referral-client";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { formatMoney, isCurrency, type Currency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useModal } from "@/contexts/ModalContext";
@@ -44,7 +46,6 @@ declare global {
   }
 }
 
-const inrFmt = (n: number) => `₹${(Number(n) || 0).toFixed(2)}`;
 
 export default function CartPage() {
   const router = useRouter();
@@ -58,6 +59,10 @@ export default function CartPage() {
   const [refCode, setRefCode] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const { currency, bookPrice } = useCurrency();
+  // Amounts come from the server quote, in the quote's currency.
+  const quoteCur: Currency = quote && isCurrency((quote as any).currency) ? (quote as any).currency : currency;
+  const inrFmt = (n: number) => formatMoney(n, quoteCur);
 
   useEffect(() => {
     setRefCode(getRefCode());
@@ -76,7 +81,7 @@ export default function CartPage() {
       fetch("/api/cart/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ items, couponCode, refCode }),
+        body: JSON.stringify({ items, couponCode, refCode, currency }),
       })
         .then((r) => r.json())
         .then((j) => {
@@ -91,11 +96,11 @@ export default function CartPage() {
         .finally(() => alive && setQuoting(false));
     }, 150);
     return () => { alive = false; clearTimeout(t); };
-  }, [items, couponCode, refCode, token, addPurchasedBooks, remove]);
+  }, [items, couponCode, refCode, token, addPurchasedBooks, remove, currency]);
 
   const cartBooks = catalog.filter((b) => items.includes(b.id));
   const priceOf = (id: number) => quote?.lines.find((l) => l.id === id);
-  const subtotal = quote?.subtotal ?? cartBooks.reduce((sum, b) => sum + b.price, 0);
+  const subtotal = quote?.subtotal ?? cartBooks.reduce((sum, b) => sum + bookPrice(b).price, 0);
   const total = quote?.total ?? subtotal;
   const couponApplied = quote?.discount?.kind === "coupon";
   const couponMessage = couponCode
@@ -116,8 +121,8 @@ export default function CartPage() {
       alert("Your cart is empty.");
       return;
     }
-    if (total < 1) {
-      alert("Cart total must be at least ₹1 for checkout.");
+    if (total < (quoteCur === "INR" ? 1 : 0.5)) {
+      alert("Your cart total is below the minimum amount for checkout.");
       return;
     }
     try {
@@ -142,7 +147,7 @@ export default function CartPage() {
     try {
       const [{ key }, orderResp] = await Promise.all([
         apiRazorpayKey(),
-        apiRazorpayOrder({ items, couponCode: couponApplied ? couponCode : undefined, refCode: refCode || undefined }),
+        apiRazorpayOrder({ items, couponCode: couponApplied ? couponCode : undefined, refCode: refCode || undefined, currency: quoteCur }),
       ]);
 
       if (!key) throw new Error("Razorpay API key missing on server configuration.");
@@ -237,7 +242,7 @@ export default function CartPage() {
               ) : (
                 cartBooks.map((b) => {
                   const line = priceOf(b.id);
-                  const unit = line?.price ?? b.price;
+                  const unit = line?.price ?? bookPrice(b).price;
                   return (
                     <div className="cart-item" key={b.id}>
                       <Image

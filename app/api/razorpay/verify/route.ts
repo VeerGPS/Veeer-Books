@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
     // ─── Marketplace Revenue Attribution ──────────────────────────────────
     try {
       const commissionPercent = await getPlatformCommissionPercentage();
-      // Order.amount is stored in INR (the Razorpay order itself is in paise).
-      const orderPaidInr = order.amount || 0;
+      // Royalties are always in INR. Order.amount is in the shopper's currency; amountInr is its INR value.
+      const orderPaidInr = typeof (order as any).amountInr === "number" ? (order as any).amountInr : order.amount || 0;
 
       // Fetch all books in this order
       const orderBooks = await BookModel.find({ id: { $in: order.items } }).lean();

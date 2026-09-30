@@ -27,6 +27,8 @@ type AdminBook = {
   isActive: boolean;
   launchPrice?: number;
   launchEndsAt?: string | null;
+  priceUSD?: number;
+  priceGBP?: number;
 };
 
 function toLocalInput(iso?: string | null) {
@@ -299,6 +301,8 @@ export default function AdminPage() {
       uploadData.append("reader", editingBook.reader || "/readers/default-reader.html");
       uploadData.append("pdf", editingBook.pdf || "/books/default-book.pdf");
       uploadData.append("launchPrice", String(editingBook.launchPrice || ""));
+      uploadData.append("priceUSD", String(editingBook.priceUSD || 0));
+      uploadData.append("priceGBP", String(editingBook.priceGBP || 0));
       uploadData.append("launchEndsAt", editingBook.launchPrice && editingBook.launchEndsAt ? new Date(editingBook.launchEndsAt).toISOString() : "");
 
       if (editCoverFile) uploadData.append("coverFile", editCoverFile);
@@ -724,6 +728,20 @@ export default function AdminPage() {
                   <label htmlFor="edit-sellingPrice" style={labelStyle}>Selling Price (INR) *</label>
                   <input id="edit-sellingPrice" type="number" min="1" required value={editingBook.sellingPrice || editingBook.price} onChange={(e) => setEditingBook({ ...editingBook, sellingPrice: Number(e.target.value), price: Number(e.target.value) })} style={inputStyle} />
                 </div>
+              </div>
+              <div style={{ border: "1px dashed #93c5fd", background: "#f0f7ff", borderRadius: 10, padding: "0.9rem", marginBottom: "1rem" }}>
+                <div style={{ fontWeight: 700, marginBottom: "0.5rem" }}>🌍 International prices (optional)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <label htmlFor="edit-priceUSD" style={labelStyle}>🇺🇸 US price (USD)</label>
+                    <input id="edit-priceUSD" type="number" min="0" step="0.01" value={editingBook.priceUSD || ""} placeholder="auto" onChange={(e) => setEditingBook({ ...editingBook, priceUSD: Number(e.target.value) })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-priceGBP" style={labelStyle}>🇬🇧 UK price (GBP)</label>
+                    <input id="edit-priceGBP" type="number" min="0" step="0.01" value={editingBook.priceGBP || ""} placeholder="auto" onChange={(e) => setEditingBook({ ...editingBook, priceGBP: Number(e.target.value) })} style={inputStyle} />
+                  </div>
+                </div>
+                <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0.5rem 0 0" }}>Shown to visitors from the US and UK. Leave empty to convert the INR price automatically (rounded to .49/.99). Tip: US/UK eBook buyers are used to $2.99–$4.99 / £1.99–£3.99.</p>
               </div>
               <div style={{ border: "1px dashed #d6b77a", background: "#fffaf0", borderRadius: 10, padding: "0.9rem", marginBottom: "1rem" }}>
                 <div style={{ fontWeight: 700, marginBottom: "0.5rem" }}>🚀 Launch offer (optional)</div>

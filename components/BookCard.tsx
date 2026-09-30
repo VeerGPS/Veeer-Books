@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { BookSummary } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
 import LaunchCountdown from "@/components/LaunchCountdown";
+import { BookPrice } from "@/components/Price";
 
 // Server component (only the optional launch countdown ships client JavaScript).
 export default function BookCard({ book, priority = false }: { book: BookSummary; priority?: boolean }) {
@@ -36,8 +37,7 @@ export default function BookCard({ book, priority = false }: { book: BookSummary
         </Link>
         <p className="book-author">{book.author}</p>
         <div className="book-price">
-          ₹{book.price}
-          {off > 0 ? <s>₹{book.actualPrice}</s> : null}
+          <BookPrice book={book} />
         </div>
         {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} compact /> : null}
       </div>

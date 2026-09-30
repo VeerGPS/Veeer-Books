@@ -14,6 +14,8 @@
   var PREVIEW = qs.get('preview') === '1';
   var PREVIEW_MAX = Math.max(1, parseInt(qs.get('pages'), 10) || 5);
   var TOTAL = PREVIEW ? Math.min(PREVIEW_MAX, B.pages) : B.pages;
+  // After the last page every reader gets an end card: "preview" (buy the book) or "finished" (what to read next).
+  var END_KIND = PREVIEW && B.pages > TOTAL ? 'preview' : 'finished';
   var RATIO = (B.h && B.w) ? B.h / B.w : 1.5;          // page height / width
   var DIR = B.slug + '/';
   var FRAMED = window.parent !== window;
@@ -243,7 +245,7 @@
       d.insertAdjacentHTML('beforeend', '<span class="pno">' + n + '</span>');
       frag.appendChild(d);
     }
-    if (PREVIEW && B.pages > TOTAL) frag.appendChild(endCard(scrollW, Math.round(h * 0.6)));
+    frag.appendChild(endCard(scrollW, Math.round(h * 0.6)));
     scrollEl.replaceChildren(frag);
     scrollBuilt = true;
   }
@@ -262,7 +264,7 @@
       if (d && !d.classList.contains('ok') && !d._loading) { d._loading = 1; fillPage(d, i); }
     }
   }
-  var scrollRAF = 0;
+  var scrollRAF = 0, endNotified = false;
   main.addEventListener('scroll', function () {
     if (S.view !== 'scroll' || scrollRAF) return;
     scrollRAF = requestAnimationFrame(function () {
@@ -270,6 +272,10 @@
       var n = scrollPageAt();
       loadNear(n);
       if (n !== S.page) { S.page = n; updateChrome(); persistSoon(); }
+      if (!endNotified && main.scrollTop + main.clientHeight >= main.scrollHeight - 40) {
+        endNotified = true;
+        notifyHost(END_KIND === 'preview' ? 'preview-end' : 'book-end');
+      }
     });
   }, { passive: true });
 
@@ -277,9 +283,18 @@
     var d = document.createElement('div');
     d.className = 'end-card';
     d.style.width = w + 'px'; d.style.minHeight = Math.min(h, 460) + 'px';
-    d.innerHTML = '<h2>That’s the end of the preview</h2><p>You’ve read ' + TOTAL + ' of ' + B.pages +
-      ' pages of <i>' + esc(B.title) + '</i>. Get the book to keep reading.</p>' +
-      '<button class="btn" data-act="buy">Get the full book</button>';
+    if (END_KIND === 'preview') {
+      d.innerHTML = '<div class="end-emoji">💛</div><h2>Loved the preview?</h2><p>You’ve read ' + TOTAL + ' of ' + B.pages +
+        ' pages of <i>' + esc(B.title) + '</i>. Get the full book to find out what happens next.</p>' +
+        '<button class="btn" data-act="buy">Get the full book</button>' +
+        '<button class="btn ghost" data-act="next">More books you’ll love</button>';
+    } else {
+      d.className += ' finished';
+      d.innerHTML = '<div class="end-emoji">🎉</div><h2>You finished <i>' + esc(B.title) + '</i>!</h2>' +
+        '<p>Loved it? Find your next great read, or tell other readers what you thought.</p>' +
+        '<button class="btn" data-act="next">See what to read next</button>' +
+        '<button class="btn ghost" data-act="review">★ Rate this book</button>';
+    }
     return d;
   }
   function notifyHost(type) {
@@ -288,9 +303,12 @@
     catch (x) { return false; }
   }
   document.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('[data-act="buy"]');
+    var b = e.target.closest && e.target.closest('[data-act]');
     if (!b) return;
-    if (!notifyHost('buy')) location.href = '/product/' + encodeURIComponent(B.slug);
+    var act = b.getAttribute('data-act');
+    if (act === 'buy') { if (!notifyHost('buy')) location.href = '/product/' + encodeURIComponent(B.slug); }
+    else if (act === 'next') { if (!notifyHost(END_KIND === 'preview' ? 'preview-end' : 'book-end')) location.href = '/#collection'; }
+    else if (act === 'review') { if (!notifyHost('review')) location.href = '/product/' + encodeURIComponent(B.slug) + '#reviews'; }
   });
   // The store page hosting the reader can ask it to jump to a page.
   window.addEventListener('message', function (e) {
@@ -308,8 +326,8 @@
     slider.style.setProperty('--fill', (TOTAL > 1 ? (first - 1) / (TOTAL - 1) * 100 : 100) + '%');
     $('pct').textContent = pct + '%';
     $('b-prev').disabled = first <= 1;
-    var moreInPreview = PREVIEW && B.pages > TOTAL && S.view !== 'scroll';
-    $('b-next').disabled = showingEnd || (last >= TOTAL && !moreInPreview);
+    // "Next" on the last page opens the end card (preview offer or "you finished it").
+    $('b-next').disabled = showingEnd || (last >= TOTAL && S.view === 'scroll');
     var mk = $('b-mark');
     if (mk) {
       var on = S.marks.some(function (m) { return m.p === first; });
@@ -376,7 +394,10 @@
     if (dir > 0) {
       var last = shown[shown.length - 1];
       if (last >= TOTAL) {
-        if (PREVIEW && B.pages > TOTAL && !showingEnd) { showingEnd = true; render(); notifyHost('preview-end'); }
+        if (!showingEnd) {
+          showingEnd = true; render();
+          if (!endNotified) { endNotified = true; notifyHost(END_KIND === 'preview' ? 'preview-end' : 'book-end'); }
+        }
         return;
       }
       goTo(last + 1);

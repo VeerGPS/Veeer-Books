@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import BookGrid from "@/components/BookGrid";
 import GiftSignup from "@/components/GiftSignup";
+import { BookPrice } from "@/components/Price";
 import { getAllBooks, toSummary, type BookSummary } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
 import type { Metadata } from "next";
@@ -108,14 +109,11 @@ export default async function HomePage() {
                 <li>30-day tracker, daily checklist and journaling prompts</li>
               </ul>
               <div className="price-row">
-                <span className="price">₹{featured.price}</span>
+                <span className="price"><BookPrice book={featured} /></span>
                 {featured.actualPrice && featured.actualPrice > featured.price ? (
-                  <>
-                    <s>₹{featured.actualPrice}</s>
-                    <span className="save">
-                      Save {Math.round(((featured.actualPrice - featured.price) / featured.actualPrice) * 100)}%
-                    </span>
-                  </>
+                  <span className="save">
+                    Save {Math.round(((featured.actualPrice - featured.price) / featured.actualPrice) * 100)}%
+                  </span>
                 ) : null}
               </div>
               <div className="hero-cta left">

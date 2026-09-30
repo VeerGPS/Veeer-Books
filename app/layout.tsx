@@ -68,9 +68,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ORG_LD)} />
+        {/* Hide INR prices for a moment on US/UK visits until they switch to $ / £ (no flash of rupees). */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var m=document.cookie.match(/(?:^|; )vsb_cur=([A-Z]{3})/);document.documentElement.setAttribute('data-cur',m?m[1]:'INR')}catch(e){}` }} />
         <Providers>
           <RefCapture />
           <GiftPopup />

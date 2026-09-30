@@ -7,6 +7,7 @@ import { getBookBySlugFromDB } from "@/lib/books";
 import { canOptimize } from "@/lib/image";
 import { SITE_NAME, absUrl, jsonLd } from "@/lib/site";
 import ShareBar from "@/app/product/[slug]/ShareBar";
+import { BookPriceText } from "@/components/Price";
 
 export const revalidate = 3600;
 
@@ -66,7 +67,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
           <div>
             <p>{post.cta.text}</p>
             <div className="post-cta-actions">
-              <Link href={`/product/${book.slug}`} className="btn btn-primary">See the book — ₹{book.price}</Link>
+              <Link href={`/product/${book.slug}`} className="btn btn-primary">See the book — <BookPriceText book={book} /></Link>
               <Link href={`/reader/${book.slug}?preview=1`} className="btn btn-outline">Read free preview</Link>
             </div>
           </div>

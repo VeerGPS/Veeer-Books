@@ -6,6 +6,8 @@ import { connectDB } from "@/lib/mongoose";
 import { BookModel, BundleModel, CouponModel, Order, User } from "@/models";
 import { BOOKS, activeLaunch } from "@/lib/books";
 import { normalizeCouponCode } from "@/lib/coupons";
+import { MULTI_CURRENCY, bookPriceIn, bundlePriceIn, isCurrency, type Currency, type Rates } from "@/lib/currency";
+import { getRates } from "@/lib/fx";
 
 /** Friend discount for a first purchase made through a referral link. */
 export const REFERRAL_FRIEND_PERCENT = 10;
@@ -28,6 +30,9 @@ export type Quote = {
   owned?: number[];
   total: number;
   referrerUserId?: string;
+  /** Currency of every amount in this quote, and INR per 1 unit of it. */
+  currency: Currency;
+  fxRate: number;
 };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -46,13 +51,19 @@ async function loadBooks(ids: number[]) {
           price: launch ? launch.price : regular,
           regularPrice: launch ? regular : undefined,
           launchEndsAt: launch?.endsAt,
+          actualInr: Number(d.actualPrice) || undefined,
+          foreign: { USD: Number(d.priceUSD) || undefined, GBP: Number(d.priceGBP) || undefined },
         };
       });
     }
   } catch (e) {
     console.warn("pricing: DB unavailable, using built-in catalogue", (e as Error).message);
   }
-  return BOOKS.filter((b) => ids.includes(b.id)).map((b) => ({ id: b.id, title: b.title, price: b.price }));
+  return BOOKS.filter((b) => ids.includes(b.id)).map((b) => ({
+    id: b.id, title: b.title, price: b.price,
+    regularPrice: undefined as number | undefined, launchEndsAt: undefined as string | undefined,
+    actualInr: b.actualPrice, foreign: undefined as { USD?: number; GBP?: number } | undefined,
+  }));
 }
 
 export async function findCoupon(rawCode: string, userId?: string) {
@@ -97,7 +108,10 @@ async function checkReferral(refCode: string, userId?: string) {
   }
 }
 
-export async function quoteCart(opts: { items: number[]; couponCode?: string; refCode?: string; userId?: string }): Promise<Quote> {
+export async function quoteCart(opts: { items: number[]; couponCode?: string; refCode?: string; userId?: string; currency?: string }): Promise<Quote> {
+  const currency: Currency = MULTI_CURRENCY && isCurrency(opts.currency) ? opts.currency : "INR";
+  const rates: Rates | null = currency === "INR" ? null : await getRates();
+  const fxRate = currency === "INR" ? 1 : rates![currency];
   let ids = Array.from(new Set((opts.items || []).map(Number).filter((n) => Number.isFinite(n) && n > 0))).slice(0, 100);
 
   // Never charge for a book the customer already owns.
@@ -112,9 +126,16 @@ export async function quoteCart(opts: { items: number[]; couponCode?: string; re
     } catch { /* if the lookup fails, price normally */ }
   }
 
-  const lines = ids.length ? await loadBooks(ids) : [];
+  const raw = ids.length ? await loadBooks(ids) : [];
+  // Every amount is in the shopper's currency (INR, or USD/GBP for US/UK visitors).
+  const lines: QuoteLine[] = raw.map((l) => {
+    if (currency === "INR") return { id: l.id, title: l.title, price: l.price, regularPrice: l.regularPrice, launchEndsAt: l.launchEndsAt };
+    const now = bookPriceIn(currency, rates!, { regularInr: l.regularPrice || l.price, currentInr: l.price, actualInr: l.actualInr, override: l.foreign });
+    const reg = l.regularPrice ? bookPriceIn(currency, rates!, { regularInr: l.regularPrice, currentInr: l.regularPrice, override: l.foreign }).price : undefined;
+    return { id: l.id, title: l.title, price: now.price, regularPrice: reg, launchEndsAt: l.launchEndsAt };
+  });
   const subtotal = r2(lines.reduce((s, l) => s + l.price, 0));
-  const quote: Quote = { lines, subtotal, total: subtotal, ...(owned.length ? { owned } : {}) };
+  const quote: Quote = { lines, subtotal, total: subtotal, currency, fxRate, ...(owned.length ? { owned } : {}) };
   if (!lines.length) return quote;
 
   // Best matching bundle (largest saving) whose books are all in the cart.
@@ -126,7 +147,9 @@ export async function quoteCart(opts: { items: number[]; couponCode?: string; re
       const bIds: number[] = b.bookIds || [];
       if (!bIds.length || !bIds.every((id) => ids.includes(id))) continue;
       const sum = lines.filter((l) => bIds.includes(l.id)).reduce((s, l) => s + l.price, 0);
-      const saving = r2(sum - (Number(b.bundlePrice) || sum));
+      const sumInr = raw.filter((l) => bIds.includes(l.id)).reduce((s, l) => s + l.price, 0);
+      const bundleCur = Number(b.bundlePrice) > 0 ? (currency === "INR" ? Number(b.bundlePrice) : bundlePriceIn(currency, Number(b.bundlePrice), sumInr, sum, rates!)) : sum;
+      const saving = r2(sum - bundleCur);
       if (saving > 0 && (!best || saving > best.discount)) best = { title: b.title, discount: saving };
     }
     if (best) quote.bundle = best;

@@ -64,6 +64,7 @@ export const apiRazorpayOrder = (payload: {
   items: number[];
   couponCode?: string;
   refCode?: string;
+  currency?: string;
 }) => call("/razorpay/order", { method: "POST", json: payload });
 
 export const apiRazorpayVerify = (payload: {

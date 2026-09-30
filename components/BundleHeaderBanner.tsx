@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { canOptimize } from "@/lib/image";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { BookPrice, bundleMoney } from "@/components/Price";
 
 type BookItem = {
   id: number;
@@ -34,6 +36,7 @@ type BundleOffer = {
 export default function BundleHeaderBanner() {
   const router = useRouter();
   const { addMultiple } = useCart();
+  const cur = useCurrency();
   const [activeBundle, setActiveBundle] = useState<BundleOffer | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -92,11 +95,9 @@ export default function BundleHeaderBanner() {
 
   if (!activeBundle || isDismissed) return null;
 
-  const savingsINR = Math.max(0, activeBundle.originalPrice - activeBundle.bundlePrice);
-  const discountPct =
-    activeBundle.originalPrice > 0
-      ? Math.round((savingsINR / activeBundle.originalPrice) * 100)
-      : 0;
+  const m = bundleMoney(cur, activeBundle as any);
+  const savingsINR = m.savings;
+  const discountPct = m.pct;
 
   const handleClaim = () => {
     addMultiple(activeBundle.bookIds);
@@ -318,7 +319,7 @@ export default function BundleHeaderBanner() {
                       fontWeight: 500,
                     }}
                   >
-                    INR {(b.sellingPrice ?? b.price ?? 0).toFixed(2)}
+                    <BookPrice book={{ ...b, price: b.price ?? b.sellingPrice ?? 0 }} strike={false} />
                   </span>
                 </div>
               ))}
@@ -367,11 +368,11 @@ export default function BundleHeaderBanner() {
                       fontFamily: "var(--sans)",
                     }}
                   >
-                    INR {activeBundle.bundlePrice.toFixed(2)}
+                    {cur.fmt(m.price)}
                   </span>
                   {activeBundle.originalPrice > activeBundle.bundlePrice ? (
                     <span style={{ fontSize: "0.88rem", color: "#a8a29e", textDecoration: "line-through" }}>
-                      INR {activeBundle.originalPrice.toFixed(2)}
+                      {cur.fmt(m.original)}
                     </span>
                   ) : null}
                 </div>
@@ -393,7 +394,7 @@ export default function BundleHeaderBanner() {
                     SAVE {discountPct}%
                   </span>
                   <div style={{ fontSize: "0.72rem", color: "#fef08a", marginTop: "2px", fontWeight: 600 }}>
-                    Save INR {savingsINR.toFixed(2)}
+                    Save {cur.fmt(savingsINR)}
                   </div>
                 </div>
               ) : null}
@@ -433,7 +434,7 @@ export default function BundleHeaderBanner() {
               }}
             >
               <span>🎁</span>
-              <span>Claim Bundle — INR {activeBundle.bundlePrice.toFixed(2)}</span>
+              <span>Claim Bundle — {cur.fmt(m.price)}</span>
             </button>
           </div>
 
@@ -496,11 +497,11 @@ export default function BundleHeaderBanner() {
 
             <div style={{ display: "inline-flex", alignItems: "baseline", gap: "0.35rem" }}>
               <span style={{ color: "#fde68a", fontWeight: 700, fontSize: "0.95rem" }}>
-                INR {activeBundle.bundlePrice.toFixed(2)}
+                {cur.fmt(m.price)}
               </span>
               {activeBundle.originalPrice > activeBundle.bundlePrice ? (
                 <span style={{ textDecoration: "line-through", color: "#a8a29e", fontSize: "0.78rem" }}>
-                  INR {activeBundle.originalPrice.toFixed(2)}
+                  {cur.fmt(m.original)}
                 </span>
               ) : null}
             </div>
@@ -517,7 +518,7 @@ export default function BundleHeaderBanner() {
                   fontWeight: 700,
                 }}
               >
-                SAVE {discountPct}% (INR {savingsINR.toFixed(2)} OFF)
+                SAVE {discountPct}% ({cur.fmt(savingsINR)} OFF)
               </span>
             ) : null}
           </div>
@@ -592,7 +593,7 @@ export default function BundleHeaderBanner() {
               🔥 Bundle Deal:
             </span>
             <span style={{ color: "#fde68a", fontWeight: 700 }}>
-              INR {activeBundle.bundlePrice.toFixed(0)}
+              {cur.fmt(m.price)}
             </span>
             <span style={{ color: "#c5a059", fontWeight: 600, fontSize: "0.8rem" }}>
               (Save {discountPct}%) ➔

@@ -249,6 +249,8 @@ export async function PUT(req: NextRequest) {
       pdf,
       launchPrice,
       launchEndsAt,
+      priceUSD,
+      priceGBP,
     } = body;
 
     if (!id || !title || !author) {
@@ -294,6 +296,10 @@ export async function PUT(req: NextRequest) {
       accent: accent || "#1a252f",
       isActive: isActive !== "false" && isActive !== false,
     };
+
+    // Optional US / UK prices (0 = convert from INR automatically).
+    if (priceUSD !== undefined) updates.priceUSD = Math.max(0, Math.round((Number(priceUSD) || 0) * 100) / 100);
+    if (priceGBP !== undefined) updates.priceGBP = Math.max(0, Math.round((Number(priceGBP) || 0) * 100) / 100);
 
     // Launch offer: a lower price until a date. Empty values end the offer.
     if (launchPrice !== undefined || launchEndsAt !== undefined) {
