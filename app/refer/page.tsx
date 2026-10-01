@@ -8,6 +8,7 @@ import { trackMarketplaceEvent } from "@/lib/analytics";
 
 type Data = {
   code: string;
+  enabled?: boolean;
   friendPercent: number;
   rewardPercent: number;
   rewardDays: number;
@@ -46,6 +47,7 @@ export default function ReferPage() {
     <main className="refer">
       <section className="container refer-wrap">
         <span className="refer-eyebrow">Refer &amp; earn</span>
+        {data && data.enabled === false ? <p className="cart-note" style={{ marginBottom: "1rem" }}>The refer-a-friend programme is paused right now — check back soon.</p> : null}
         <h1>Give {data?.friendPercent ?? 10}%, get {data?.rewardPercent ?? 15}%</h1>
         <p className="refer-lead">Share your link. Friends get <b>{data?.friendPercent ?? 10}% off their first book</b>, and every time one of them buys, you get a <b>{data?.rewardPercent ?? 15}% off coupon</b> for your next read.</p>
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
 import { Order, Subscriber, User } from "@/models";
 import { isAdminPasswordValid } from "@/lib/admin";
-import { GIFT_BOOK } from "@/lib/gift";
+import { getGiftBook } from "@/lib/gift-server";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     signups.forEach((s) => { const k = new Date(s.signedUpAt).toISOString().slice(0, 10); const i = idx.get(k); if (i !== undefined) daily[i].count++; });
 
     return NextResponse.json({
-      giftBook: GIFT_BOOK.title,
+      giftBook: (await getGiftBook())?.title || "the free book (offer is off)",
       stats: {
         signups: signups.length,
         last7: since(7),

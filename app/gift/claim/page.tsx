@@ -12,6 +12,7 @@ export default function ClaimGiftPage() {
   const { show } = useModal();
   const [state, setState] = useState<"loading" | "ok" | "bad">("loading");
   const [saved, setSaved] = useState(false);
+  const [book, setBook] = useState<{ slug: string; title: string }>({ slug: GIFT_BOOK.slug, title: GIFT_BOOK.title });
 
   useEffect(() => {
     if (!isReady) return;
@@ -25,7 +26,8 @@ export default function ClaimGiftPage() {
       .then((j) => {
         if (!j.ok) return setState("bad");
         addPurchasedBooks([j.bookId || GIFT_BOOK.id]);
-        markGiftClaimed();
+        markGiftClaimed(j.bookId);
+        if (j.slug) setBook({ slug: j.slug, title: j.title || GIFT_BOOK.title });
         setSaved(Boolean(j.savedToAccount));
         setState("ok");
       })
@@ -43,12 +45,12 @@ export default function ClaimGiftPage() {
       ) : (
         <>
           <div style={{ fontSize: "2.5rem" }}>🎁</div>
-          <h1 style={{ fontFamily: "var(--serif)" }}>{GIFT_BOOK.title} is unlocked</h1>
+          <h1 style={{ fontFamily: "var(--serif)" }}>{book.title} is unlocked</h1>
           <p className="muted" style={{ marginBottom: "1.25rem" }}>
             {saved ? "It’s saved in your library on every device." : "It’s unlocked on this device. Sign in or create a free account with the same email to keep it everywhere."}
           </p>
           <div style={{ display: "flex", gap: "0.6rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href={`/reader/${GIFT_BOOK.slug}`} className="btn btn-primary">Start reading</Link>
+            <Link href={`/reader/${book.slug}`} className="btn btn-primary">Start reading</Link>
             {!isLoggedIn ? <button className="btn btn-outline" onClick={() => show("signup")}>Create free account</button> : null}
           </div>
         </>

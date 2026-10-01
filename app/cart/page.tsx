@@ -28,12 +28,14 @@ import {
 } from "@/lib/api-client";
 
 type Quote = {
-  lines: { id: number; title: string; price: number; regularPrice?: number; launchEndsAt?: string }[];
+  lines: { id: number; title: string; price: number; regularPrice?: number; launchEndsAt?: string; offerLabel?: string }[];
   subtotal: number;
   bundle?: { title: string; discount: number };
-  discount?: { kind: "coupon" | "referral"; code: string; percent: number; amount: number; label: string };
+  discount?: { kind: "coupon" | "referral" | "multibuy" | "welcome"; code: string; percent: number; amount: number; label: string };
   couponError?: string;
   referralNote?: string;
+  nextTier?: { booksNeeded: number; percent: number };
+  welcomeHint?: number;
   total: number;
 };
 
@@ -104,9 +106,9 @@ export default function CartPage() {
   const total = quote?.total ?? subtotal;
   const couponApplied = quote?.discount?.kind === "coupon";
   const couponMessage = couponCode
-    ? couponApplied ? `Coupon applied: ${quote?.discount?.percent}% off.`
+    ? couponApplied ? `Coupon applied: ${quote?.discount?.label}.`
     : quote?.couponError ? quote.couponError
-    : quote?.discount?.kind === "referral" ? "Your friend’s discount saves more, so we kept that." : ""
+    : quote?.discount ? `You already have a better offer (${quote.discount.label}), so we kept that.` : ""
     : "";
 
   const applyCoupon = () => setCouponCode(couponInput.trim().toUpperCase());
@@ -229,6 +231,17 @@ export default function CartPage() {
             ) : refCode && quote?.referralNote ? (
               <div className="cart-note">{quote.referralNote}</div>
             ) : null}
+            {quote?.discount?.kind === "multibuy" || quote?.discount?.kind === "welcome" ? (
+              <div className="cart-note cart-note-good">🎉 <b>{quote.discount.label}</b> applied automatically.</div>
+            ) : null}
+            {quote?.nextTier && cartBooks.length > 0 ? (
+              <div className="cart-note cart-note-gold">
+                Add <b>{quote.nextTier.booksNeeded} more book{quote.nextTier.booksNeeded === 1 ? "" : "s"}</b> and get <b>{quote.nextTier.percent}% off</b> your whole order. <Link href="/#collection">Browse books →</Link>
+              </div>
+            ) : null}
+            {quote?.welcomeHint && cartBooks.length > 0 ? (
+              <div className="cart-note">👋 New here? <b>Sign in</b> to get <b>{quote.welcomeHint}% off</b> your first order.</div>
+            ) : null}
             {quote?.bundle ? (
               <div className="cart-note cart-note-gold">
                 <b>Bundle offer applied — {quote.bundle.title}.</b> You save {inrFmt(quote.bundle.discount)} by getting these books together.
@@ -259,7 +272,7 @@ export default function CartPage() {
                         <div className="muted">
                           {inrFmt(unit)}
                           {line?.regularPrice ? <span className="cart-strike">{inrFmt(line.regularPrice)}</span> : null}
-                          {line?.launchEndsAt ? <span className="cart-tag">Launch price</span> : null}
+                          {line?.launchEndsAt ? <span className="cart-tag">{line.offerLabel || "Launch price"}</span> : null}
                         </div>
                       </div>
                       <div className="cart-item-actions">

@@ -4,27 +4,30 @@
 import { Types } from "mongoose";
 import { connectDB } from "@/lib/mongoose";
 import { BookModel, BundleModel, CouponModel, Order, User } from "@/models";
-import { BOOKS, activeLaunch } from "@/lib/books";
+import { BOOKS, activeOffer } from "@/lib/books";
+import { getDeals } from "@/lib/deals";
+import { multiBuyTier, type DealsSettings } from "@/lib/deals-shared";
 import { normalizeCouponCode } from "@/lib/coupons";
 import { MULTI_CURRENCY, bookPriceIn, bundlePriceIn, isCurrency, type Currency, type Rates } from "@/lib/currency";
 import { getRates } from "@/lib/fx";
 
-/** Friend discount for a first purchase made through a referral link. */
-export const REFERRAL_FRIEND_PERCENT = 10;
-/** Reward coupon the referrer gets for each friend's first purchase. */
-export const REFERRAL_REWARD_PERCENT = 15;
-export const REFERRAL_REWARD_DAYS = 90;
+// Referral percentages now live in /admin/deals (see getDeals().referral).
 
 // Codes that worked before coupons moved to the database.
 const LEGACY_COUPONS: Record<string, number> = { WELCOME20: 20, SAVE10: 10, VEEER50: 50 };
 
-export type QuoteLine = { id: number; title: string; price: number; regularPrice?: number; launchEndsAt?: string };
+export type QuoteLine = { id: number; title: string; price: number; regularPrice?: number; launchEndsAt?: string; offerLabel?: string };
+export type DiscountKind = "coupon" | "referral" | "multibuy" | "welcome";
 export type Quote = {
   lines: QuoteLine[];
   subtotal: number;
   bundle?: { title: string; discount: number };
-  discount?: { kind: "coupon" | "referral"; code: string; percent: number; amount: number; label: string };
+  discount?: { kind: DiscountKind; code: string; percent: number; amount: number; label: string };
   couponError?: string;
+  /** "Add 1 more book to get 20% off" nudge. */
+  nextTier?: { booksNeeded: number; percent: number };
+  /** Guests: sign in to get the first-order discount. */
+  welcomeHint?: number;
   referralNote?: string;
   /** Books removed because they're already in the customer's library. */
   owned?: number[];
@@ -37,20 +40,21 @@ export type Quote = {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-async function loadBooks(ids: number[]) {
+async function loadBooks(ids: number[], deals: DealsSettings) {
   try {
     await connectDB();
     const docs = await BookModel.find({ id: { $in: ids }, isActive: true }, { htmlContent: 0 }).lean();
     if (docs.length) {
       return docs.map((d: any) => {
         const regular = Number(d.sellingPrice) > 0 ? d.sellingPrice : Number(d.price) > 0 ? d.price : Number(d.actualPrice) || 0;
-        const launch = activeLaunch(d, regular);
+        const launch = activeOffer(d, regular, deals.sale);
         return {
           id: d.id as number,
           title: d.title as string,
           price: launch ? launch.price : regular,
           regularPrice: launch ? regular : undefined,
           launchEndsAt: launch?.endsAt,
+          offerLabel: launch?.label,
           actualInr: Number(d.actualPrice) || undefined,
           foreign: { USD: Number(d.priceUSD) || undefined, GBP: Number(d.priceGBP) || undefined },
         };
@@ -61,14 +65,24 @@ async function loadBooks(ids: number[]) {
   }
   return BOOKS.filter((b) => ids.includes(b.id)).map((b) => ({
     id: b.id, title: b.title, price: b.price,
-    regularPrice: undefined as number | undefined, launchEndsAt: undefined as string | undefined,
+    regularPrice: undefined as number | undefined, launchEndsAt: undefined as string | undefined, offerLabel: undefined as string | undefined,
     actualInr: b.actualPrice, foreign: undefined as { USD?: number; GBP?: number } | undefined,
   }));
 }
 
+export type FoundCoupon = {
+  code: string; kind: "percent" | "flat"; percent: number; flatInr: number; id?: string;
+  minOrderInr: number; minBooks: number; firstOrderOnly: boolean; bookIds: number[];
+};
+
+async function hasPaidOrder(userId?: string) {
+  if (!userId || !Types.ObjectId.isValid(userId)) return false;
+  try { await connectDB(); return Boolean(await Order.exists({ userId, status: "paid" })); } catch { return false; }
+}
+
 export async function findCoupon(rawCode: string, userId?: string) {
   const code = normalizeCouponCode(rawCode || "");
-  if (!code) return { error: "" as string, coupon: null as null | { code: string; percent: number; id?: string } };
+  if (!code) return { error: "" as string, coupon: null as null | FoundCoupon };
   try {
     await connectDB();
     const c: any = await CouponModel.findOne({ code, active: true }).lean();
@@ -78,21 +92,31 @@ export async function findCoupon(rawCode: string, userId?: string) {
       if (c.ownerUserId && String(c.ownerUserId) !== String(userId || "")) {
         return { error: userId ? "This coupon belongs to another account." : "Sign in to use this coupon.", coupon: null };
       }
+      if (c.startsAt && new Date(c.startsAt) > new Date()) return { error: "This coupon isn’t active yet.", coupon: null };
+      const kind = c.kind === "flat" ? "flat" : "percent";
       const percent = Math.max(0, Math.min(100, Number(c.discountPercent) || 0));
-      if (percent < 1) return { error: "Invalid coupon code.", coupon: null };
-      return { error: "", coupon: { code, percent, id: String(c._id) } };
+      const flatInr = Math.max(0, Number(c.flatInr) || 0);
+      if (kind === "percent" ? percent < 1 : flatInr < 1) return { error: "Invalid coupon code.", coupon: null };
+      return {
+        error: "",
+        coupon: {
+          code, kind, percent, flatInr, id: String(c._id),
+          minOrderInr: Number(c.minOrderInr) || 0, minBooks: Number(c.minBooks) || 0,
+          firstOrderOnly: Boolean(c.firstOrderOnly), bookIds: (c.bookIds || []).map(Number),
+        } as FoundCoupon,
+      };
     }
   } catch {
     /* fall through to legacy codes */
   }
-  if (LEGACY_COUPONS[code]) return { error: "", coupon: { code, percent: LEGACY_COUPONS[code] } };
+  if (LEGACY_COUPONS[code]) return { error: "", coupon: { code, kind: "percent", percent: LEGACY_COUPONS[code], flatInr: 0, minOrderInr: 0, minBooks: 0, firstOrderOnly: false, bookIds: [] } as FoundCoupon };
   return { error: "Invalid coupon code.", coupon: null };
 }
 
 /** Referral discount applies to a signed-in customer's first paid order, not to their own link. */
-async function checkReferral(refCode: string, userId?: string) {
+async function checkReferral(refCode: string, userId: string | undefined, enabled: boolean) {
   const code = normalizeCouponCode(refCode || "");
-  if (!code) return null;
+  if (!code || !enabled) return null;
   try {
     await connectDB();
     const referrer: any = await User.findOne({ referralCode: code }, { _id: 1 }).lean();
@@ -126,13 +150,14 @@ export async function quoteCart(opts: { items: number[]; couponCode?: string; re
     } catch { /* if the lookup fails, price normally */ }
   }
 
-  const raw = ids.length ? await loadBooks(ids) : [];
+  const deals = await getDeals();
+  const raw = ids.length ? await loadBooks(ids, deals) : [];
   // Every amount is in the shopper's currency (INR, or USD/GBP for US/UK visitors).
   const lines: QuoteLine[] = raw.map((l) => {
-    if (currency === "INR") return { id: l.id, title: l.title, price: l.price, regularPrice: l.regularPrice, launchEndsAt: l.launchEndsAt };
+    if (currency === "INR") return { id: l.id, title: l.title, price: l.price, regularPrice: l.regularPrice, launchEndsAt: l.launchEndsAt, offerLabel: l.offerLabel };
     const now = bookPriceIn(currency, rates!, { regularInr: l.regularPrice || l.price, currentInr: l.price, actualInr: l.actualInr, override: l.foreign });
     const reg = l.regularPrice ? bookPriceIn(currency, rates!, { regularInr: l.regularPrice, currentInr: l.regularPrice, override: l.foreign }).price : undefined;
-    return { id: l.id, title: l.title, price: now.price, regularPrice: reg, launchEndsAt: l.launchEndsAt };
+    return { id: l.id, title: l.title, price: now.price, regularPrice: reg, launchEndsAt: l.launchEndsAt, offerLabel: l.offerLabel };
   });
   const subtotal = r2(lines.reduce((s, l) => s + l.price, 0));
   const quote: Quote = { lines, subtotal, total: subtotal, currency, fxRate, ...(owned.length ? { owned } : {}) };
@@ -159,19 +184,49 @@ export async function quoteCart(opts: { items: number[]; couponCode?: string; re
 
   const afterBundle = Math.max(0, subtotal - (quote.bundle?.discount || 0));
 
-  // One discount at a time: whichever of coupon / referral saves more.
+  // One discount at a time: whichever of coupon / friend referral / multi-buy / first-order saves the most.
   const candidates: NonNullable<Quote["discount"]>[] = [];
+  const paidBefore = opts.userId ? await hasPaidOrder(opts.userId) : false;
+  const ratio = subtotal > 0 ? afterBundle / subtotal : 1;
+
   if (opts.couponCode) {
     const { coupon, error } = await findCoupon(opts.couponCode, opts.userId);
-    if (coupon) candidates.push({ kind: "coupon", code: coupon.code, percent: coupon.percent, amount: r2(afterBundle * coupon.percent / 100), label: `Coupon ${coupon.code} (${coupon.percent}% off)` });
-    else if (error) quote.couponError = error;
+    if (coupon) {
+      const eligible = coupon.bookIds.length ? lines.filter((l) => coupon.bookIds.includes(l.id)) : lines;
+      const base = r2(eligible.reduce((s, l) => s + l.price, 0) * ratio);
+      let problem = "";
+      if (!eligible.length) problem = "This coupon doesn’t apply to the books in your cart.";
+      else if (coupon.minBooks > 0 && lines.length < coupon.minBooks) problem = `Add ${coupon.minBooks - lines.length} more book${coupon.minBooks - lines.length === 1 ? "" : "s"} to use this coupon (minimum ${coupon.minBooks}).`;
+      else if (coupon.minOrderInr > 0 && afterBundle * fxRate + 0.001 < coupon.minOrderInr) problem = `This coupon needs a minimum order of ₹${coupon.minOrderInr}.`;
+      else if (coupon.firstOrderOnly && !opts.userId) problem = "Sign in to use this first-order coupon.";
+      else if (coupon.firstOrderOnly && paidBefore) problem = "This coupon is for first orders only.";
+      if (problem) quote.couponError = problem;
+      else {
+        const amount = coupon.kind === "flat" ? Math.min(base, r2(coupon.flatInr / fxRate)) : r2(base * coupon.percent / 100);
+        const pct = base > 0 ? Math.round((amount / afterBundle) * 100) : 0;
+        candidates.push({
+          kind: "coupon", code: coupon.code, percent: coupon.kind === "flat" ? pct : coupon.percent, amount: r2(amount),
+          label: coupon.kind === "flat" ? `Coupon ${coupon.code}` : `Coupon ${coupon.code} (${coupon.percent}% off)`,
+        });
+      }
+    } else if (error) quote.couponError = error;
   }
   if (opts.refCode) {
-    const ref = await checkReferral(opts.refCode, opts.userId);
+    const ref = await checkReferral(opts.refCode, opts.userId, deals.referral.enabled);
     if (ref?.ok) {
-      candidates.push({ kind: "referral", code: ref.code, percent: REFERRAL_FRIEND_PERCENT, amount: r2(afterBundle * REFERRAL_FRIEND_PERCENT / 100), label: `Friend’s referral (${REFERRAL_FRIEND_PERCENT}% off)` });
+      const p = deals.referral.friendPercent;
+      candidates.push({ kind: "referral", code: ref.code, percent: p, amount: r2(afterBundle * p / 100), label: `Friend’s referral (${p}% off)` });
       quote.referrerUserId = ref.referrerUserId;
     } else if (ref && !ref.ok) quote.referralNote = ref.note;
+  }
+  const { tier, next } = multiBuyTier(deals.multiBuy, lines.length);
+  if (tier) candidates.push({ kind: "multibuy", code: `MULTI${tier.minBooks}`, percent: tier.percent, amount: r2(afterBundle * tier.percent / 100), label: `Buy ${tier.minBooks}+ books (${tier.percent}% off)` });
+  if (next) quote.nextTier = { booksNeeded: next.minBooks - lines.length, percent: next.percent };
+  if (deals.firstOrder.enabled) {
+    if (opts.userId && !paidBefore) {
+      const p = deals.firstOrder.percent;
+      candidates.push({ kind: "welcome", code: "WELCOME", percent: p, amount: r2(afterBundle * p / 100), label: `Welcome offer (${p}% off your first order)` });
+    } else if (!opts.userId) quote.welcomeHint = deals.firstOrder.percent;
   }
   candidates.sort((a, b) => b.amount - a.amount);
   if (candidates[0]) {

@@ -39,7 +39,7 @@ export default function BookCard({ book, priority = false }: { book: BookSummary
         <div className="book-price">
           <BookPrice book={book} />
         </div>
-        {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} compact /> : null}
+        {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} label={book.offerLabel} compact /> : null}
       </div>
     </article>
   );

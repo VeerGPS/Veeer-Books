@@ -124,7 +124,16 @@ const bookSchema = new Schema<IBook>(
 export interface ICoupon {
   _id: Types.ObjectId;
   code: string;
+  /** "percent" (default) or "flat" (fixed amount in INR off). */
+  kind?: "percent" | "flat";
   discountPercent: number;
+  flatInr?: number;
+  minOrderInr?: number;
+  minBooks?: number;
+  firstOrderOnly?: boolean;
+  startsAt?: Date;
+  /** Limit the coupon to these books (empty = whole cart). */
+  bookIds?: number[];
   active: boolean;
   ownerUserId?: Types.ObjectId;
   maxUses?: number;
@@ -138,7 +147,14 @@ export interface ICoupon {
 const couponSchema = new Schema<ICoupon>(
   {
     code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    kind: { type: String, enum: ["percent", "flat"], default: "percent" },
     discountPercent: { type: Number, required: true, default: 0 },
+    flatInr: { type: Number, default: 0 },
+    minOrderInr: { type: Number, default: 0 },
+    minBooks: { type: Number, default: 0 },
+    firstOrderOnly: { type: Boolean, default: false },
+    startsAt: { type: Date },
+    bookIds: { type: [Number], default: [] },
     active: { type: Boolean, default: true },
     // Personal / limited coupons (e.g. referral rewards). Unset = unlimited public coupon.
     ownerUserId: { type: Schema.Types.ObjectId, ref: "User" },
@@ -898,4 +914,11 @@ export const EmailEvent = (mongoose.models.EmailEvent as mongoose.Model<IEmailEv
 export const PublishingAgreementVersion = (mongoose.models.PublishingAgreementVersion as mongoose.Model<IPublishingAgreementVersion>) || model<IPublishingAgreementVersion>("PublishingAgreementVersion", publishingAgreementVersionSchema);
 export const AgreementAcceptance = (mongoose.models.AgreementAcceptance as mongoose.Model<IAgreementAcceptance>) || model<IAgreementAcceptance>("AgreementAcceptance", agreementAcceptanceSchema);
 export const Subscriber = (mongoose.models.Subscriber as mongoose.Model<ISubscriber>) || model<ISubscriber>("Subscriber", subscriberSchema);
+// ─── Deals & offers settings (one document, edited from /admin/deals) ───────
+export interface IDealsConfig { key: string; data: Record<string, any>; updatedAt: Date }
+const dealsConfigSchema = new Schema<IDealsConfig>(
+  { key: { type: String, required: true, unique: true }, data: { type: Schema.Types.Mixed, default: {} } },
+  { timestamps: true, minimize: false }
+);
+export const DealsConfig = (mongoose.models.DealsConfig as mongoose.Model<IDealsConfig>) || model<IDealsConfig>("DealsConfig", dealsConfigSchema);
 export const Review = (mongoose.models.Review as mongoose.Model<IReview>) || model<IReview>("Review", reviewSchema);

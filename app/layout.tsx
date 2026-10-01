@@ -7,6 +7,7 @@ import HideOnReader from "@/components/HideOnReader";
 import RefCapture from "@/components/RefCapture";
 import GiftPopup from "@/components/GiftPopup";
 import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
+import { getPublicDeals } from "@/lib/gift-server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -62,18 +63,19 @@ export const viewport: Viewport = {
   themeColor: "#fdfbf7",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const deals = await getPublicDeals().catch(() => undefined);
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ORG_LD)} />
         {/* Hide INR prices for a moment on US/UK visits until they switch to $ / £ (no flash of rupees). */}
         <script dangerouslySetInnerHTML={{ __html: `try{var m=document.cookie.match(/(?:^|; )vsb_cur=([A-Z]{3})/);document.documentElement.setAttribute('data-cur',m?m[1]:'INR')}catch(e){}` }} />
-        <Providers>
+        <Providers deals={deals}>
           <RefCapture />
           <GiftPopup />
           <Header />

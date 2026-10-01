@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getOrCreateReferralCode, referralStats } from "@/lib/referrals";
-import { REFERRAL_FRIEND_PERCENT, REFERRAL_REWARD_DAYS, REFERRAL_REWARD_PERCENT } from "@/lib/pricing";
+import { getDeals } from "@/lib/deals";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,13 @@ export async function GET(req: NextRequest) {
   try {
     const code = await getOrCreateReferralCode(auth.userId);
     const stats = await referralStats(auth.userId);
+    const { referral } = await getDeals();
     return NextResponse.json({
       code,
-      friendPercent: REFERRAL_FRIEND_PERCENT,
-      rewardPercent: REFERRAL_REWARD_PERCENT,
-      rewardDays: REFERRAL_REWARD_DAYS,
+      enabled: referral.enabled,
+      friendPercent: referral.friendPercent,
+      rewardPercent: referral.rewardPercent,
+      rewardDays: referral.rewardDays,
       ...stats,
     });
   } catch (e) {

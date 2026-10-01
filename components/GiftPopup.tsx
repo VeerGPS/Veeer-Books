@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import GiftSignup, { GIFT_CLAIMED_KEY } from "@/components/GiftSignup";
-import { GIFT_BOOK } from "@/lib/gift";
+import GiftSignup, { isGiftClaimed } from "@/components/GiftSignup";
+import { useDeals } from "@/contexts/DealsContext";
 
 const SEEN_KEY = "vsb_gift_popup_seen";
 const QUIET_DAYS = 14;
@@ -15,13 +15,16 @@ export default function GiftPopup() {
   const pathname = usePathname() || "/";
   const { purchasedBooks, isReady } = useAuth();
   const [open, setOpen] = useState(false);
+  const { gift, popups } = useDeals();
+  const giftId = gift?.id;
 
   useEffect(() => {
     if (!isReady) return;
     if (HIDE_ON.some((p) => pathname.startsWith(p))) return;
-    if (purchasedBooks.includes(GIFT_BOOK.id)) return;
+    if (!giftId || !popups.gift) return;
+    if (purchasedBooks.includes(giftId)) return;
+    if (isGiftClaimed(giftId)) return;
     try {
-      if (localStorage.getItem(GIFT_CLAIMED_KEY)) return;
       const seen = Number(localStorage.getItem(SEEN_KEY) || 0);
       if (seen && Date.now() - seen < QUIET_DAYS * 86400_000) return;
     } catch { return; }
@@ -38,14 +41,14 @@ export default function GiftPopup() {
       try { localStorage.setItem(SEEN_KEY, String(Date.now())); } catch { /* ignore */ }
       cleanup();
     };
-    const timer = window.setTimeout(show, 12_000);
+    const timer = window.setTimeout(show, Math.max(0, popups.giftDelaySeconds) * 1000);
     // Exit-intent only on real mouse devices — touch screens fire fake mouse events.
     const hasMouse = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
     const onLeave = (e: MouseEvent) => { if (hasMouse && !e.relatedTarget && e.clientY <= 0) show(); };
     document.addEventListener("mouseout", onLeave);
     function cleanup() { window.clearTimeout(timer); window.clearTimeout(retry); document.removeEventListener("mouseout", onLeave); }
     return cleanup;
-  }, [pathname, isReady, purchasedBooks]);
+  }, [pathname, isReady, purchasedBooks, giftId, popups.gift, popups.giftDelaySeconds]);
 
   useEffect(() => {
     if (!open) return;

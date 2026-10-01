@@ -4,18 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { GIFT_BOOK } from "@/lib/gift";
-import { GIFT_CLAIMED_KEY } from "@/components/GiftSignup";
+import { useDeals } from "@/contexts/DealsContext";
+import { isGiftClaimed } from "@/components/GiftSignup";
 
 /** Small "free book" banner on book pages, for visitors who haven't claimed it yet. */
 export default function FreeBookStrip({ currentSlug }: { currentSlug: string }) {
   const { purchasedBooks, isReady } = useAuth();
+  const GIFT_BOOK = useDeals().gift;
   const [claimed, setClaimed] = useState(true);
-  useEffect(() => {
-    try { setClaimed(Boolean(localStorage.getItem(GIFT_CLAIMED_KEY))); } catch { setClaimed(false); }
-  }, []);
+  useEffect(() => { setClaimed(isGiftClaimed(GIFT_BOOK?.id)); }, [GIFT_BOOK?.id]);
 
-  if (!isReady || claimed || purchasedBooks.includes(GIFT_BOOK.id)) return null;
+  if (!GIFT_BOOK || !isReady || claimed || purchasedBooks.includes(GIFT_BOOK.id)) return null;
   const isGiftBook = currentSlug === GIFT_BOOK.slug;
 
   return (

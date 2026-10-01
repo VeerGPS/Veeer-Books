@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import GiftSignup, { GIFT_CLAIMED_KEY } from "@/components/GiftSignup";
-import { GIFT_BOOK } from "@/lib/gift";
+import GiftSignup, { isGiftClaimed } from "@/components/GiftSignup";
+import { useDeals } from "@/contexts/DealsContext";
 
 /**
  * On the free book's own product page: show the "get it free" email form in place of
@@ -14,9 +14,10 @@ export default function GiftBookOffer({ children }: { children: ReactNode }) {
   const { purchasedBooks, isReady } = useAuth();
   const [claimed, setClaimed] = useState(false);
   const [justClaimed, setJustClaimed] = useState(false);
-  useEffect(() => {
-    try { setClaimed(Boolean(localStorage.getItem(GIFT_CLAIMED_KEY))); } catch { /* ignore */ }
-  }, []);
+  const GIFT_BOOK = useDeals().gift;
+  useEffect(() => { setClaimed(isGiftClaimed(GIFT_BOOK?.id)); }, [GIFT_BOOK?.id]);
+
+  if (!GIFT_BOOK) return <>{children}</>;
 
   // Signed-in owner: the normal actions already show "Read Now".
   if (isReady && purchasedBooks.includes(GIFT_BOOK.id) && !justClaimed) return <>{children}</>;

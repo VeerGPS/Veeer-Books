@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongoose";
 import { Subscriber, User } from "@/models";
 import { getOptionalAuth } from "@/lib/auth";
 import { GIFT_BOOK } from "@/lib/gift";
+import { giftInfoById } from "@/lib/gift-server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,8 @@ async function find(t: string) {
 export async function GET(req: NextRequest) {
   const sub = await find(req.nextUrl.searchParams.get("t") || "").catch(() => null);
   if (!sub) return NextResponse.json({ ok: false, error: "This gift link isn’t valid." }, { status: 404 });
-  return NextResponse.json({ ok: true, bookId: sub.giftBookId || GIFT_BOOK.id, slug: GIFT_BOOK.slug });
+  const info = await giftInfoById(sub.giftBookId || GIFT_BOOK.id);
+  return NextResponse.json({ ok: true, bookId: info?.id ?? GIFT_BOOK.id, slug: info?.slug ?? GIFT_BOOK.slug, title: info?.title ?? GIFT_BOOK.title });
 }
 
 export async function POST(req: NextRequest) {
@@ -29,5 +31,6 @@ export async function POST(req: NextRequest) {
     await User.updateOne({ _id: auth.userId }, { $addToSet: { purchasedBooks: sub.giftBookId || GIFT_BOOK.id } });
     if (!sub.userId) { sub.userId = auth.userId as any; await sub.save(); }
   }
-  return NextResponse.json({ ok: true, bookId: sub.giftBookId || GIFT_BOOK.id, slug: GIFT_BOOK.slug, savedToAccount: Boolean(auth?.userId) });
+  const info = await giftInfoById(sub.giftBookId || GIFT_BOOK.id);
+  return NextResponse.json({ ok: true, bookId: info?.id ?? GIFT_BOOK.id, slug: info?.slug ?? GIFT_BOOK.slug, title: info?.title ?? GIFT_BOOK.title, savedToAccount: Boolean(auth?.userId) });
 }

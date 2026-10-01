@@ -602,6 +602,9 @@ export default function AdminPage() {
             <Link href="/admin/publishing/sales" className="btn btn-sm btn-outline" style={{ borderColor: "#b45309", color: "#b45309", backgroundColor: "#ffffff" }}>
               Marketplace Sales
             </Link>
+            <Link href="/admin/deals" className="btn btn-sm" style={{ backgroundColor: "#15803d", color: "#ffffff", fontWeight: 700 }}>
+              🔥 Deals &amp; offers
+            </Link>
             <Link href="/admin/audience" className="btn btn-sm" style={{ backgroundColor: "#1c1917", color: "#ffffff", fontWeight: 700 }}>
               Free book &amp; customers
             </Link>
@@ -862,7 +865,7 @@ export default function AdminPage() {
 
         {/* ─── Bundle Offer Campaign Management Section ─── */}
         <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem" }}>🎁 Bundle Offer Campaigns</h2>
+        <h2 id="bundles" style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.5rem", scrollMarginTop: "90px" }}>🎁 Bundle Offer Campaigns</h2>
         <p style={{ color: "#475569", marginBottom: "1.75rem", fontSize: "0.95rem" }}>Combine multiple books into a limited-time promotional bundle offer on the website without an ending date.</p>
 
         <form onSubmit={createBundle} style={{ backgroundColor: "#f8fafc", padding: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
@@ -967,7 +970,8 @@ export default function AdminPage() {
         {/* ─── Coupon Management Section ─── */}
         <hr style={{ margin: "2.5rem 0", borderColor: "#e2e8f0" }} />
         <form onSubmit={createCoupon}>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>Create Coupon</h2>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.25rem" }}>Create Coupon</h2>
+          <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#475569" }}>Need ₹-off coupons, minimum orders, expiry dates or first-order-only codes? Use <Link href="/admin/deals#coupons">Deals &amp; offers</Link>.</p>
           <div style={{ marginBottom: "1.25rem" }}>
             <label htmlFor="couponCode" style={labelStyle}>Coupon Code</label>
             <input id="couponCode" required value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="e.g. SPECIAL50" style={inputStyle} />

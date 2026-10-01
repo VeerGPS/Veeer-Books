@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { connectDB } from "@/lib/mongoose";
 import { CouponModel, Order, User } from "@/models";
 import { sendReaderEmail } from "@/lib/email-service";
-import { REFERRAL_REWARD_DAYS, REFERRAL_REWARD_PERCENT } from "@/lib/pricing";
+import { getDeals } from "@/lib/deals";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
 
@@ -35,6 +35,10 @@ export async function getOrCreateReferralCode(userId: string): Promise<string> {
 export async function rewardReferrer({ referrerUserId, friendUserId, orderId }: { referrerUserId: string; friendUserId: string; orderId: string }) {
   await connectDB();
   if (referrerUserId === friendUserId) return;
+  const { referral } = await getDeals();
+  if (!referral.enabled) return;
+  const REFERRAL_REWARD_DAYS = referral.rewardDays;
+  const REFERRAL_REWARD_PERCENT = referral.rewardPercent;
   const note = `referral-reward:${orderId}`;
   if (await CouponModel.exists({ note })) return;
 

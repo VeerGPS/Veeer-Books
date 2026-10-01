@@ -4,15 +4,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { EMAIL_RE, GIFT_BOOK } from "@/lib/gift";
+import { EMAIL_RE } from "@/lib/gift";
+import { useDeals } from "@/contexts/DealsContext";
 import { getRefCode } from "@/lib/referral-client";
 import { trackMarketplaceEvent } from "@/lib/analytics";
 import { Money } from "@/components/Price";
 
 export const GIFT_CLAIMED_KEY = "vsb_gift_claimed";
 
-export function markGiftClaimed() {
-  try { localStorage.setItem(GIFT_CLAIMED_KEY, String(Date.now())); } catch { /* ignore */ }
+/** Remember on this device that the visitor already claimed this free book. */
+export function markGiftClaimed(bookId?: number) {
+  try {
+    localStorage.setItem(GIFT_CLAIMED_KEY + (bookId && bookId !== 3 ? `_${bookId}` : ""), String(Date.now()));
+  } catch { /* ignore */ }
+}
+export function isGiftClaimed(bookId?: number) {
+  try { return Boolean(localStorage.getItem(GIFT_CLAIMED_KEY + (bookId && bookId !== 3 ? `_${bookId}` : ""))); } catch { return false; }
 }
 
 /**
@@ -21,6 +28,7 @@ export function markGiftClaimed() {
  */
 export default function GiftSignup({ variant = "card", source = "site", onDone }: { variant?: "card" | "inline" | "modal" | "product"; source?: string; onDone?: () => void }) {
   const { token, addPurchasedBooks } = useAuth();
+  const GIFT_BOOK = useDeals().gift;
   const [email, setEmail] = useState("");
     const [trap, setTrap] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,8 +48,8 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || "Something went wrong. Please try again.");
-      addPurchasedBooks([GIFT_BOOK.id]);
-      markGiftClaimed();
+      if (j.bookId) addPurchasedBooks([j.bookId]);
+      markGiftClaimed(j.bookId || GIFT_BOOK?.id);
       trackMarketplaceEvent("free_gift_claimed");
       setDone(true);
       onDone?.();
@@ -51,6 +59,8 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
       setBusy(false);
     }
   };
+
+  if (!GIFT_BOOK) return null;
 
   if (done) {
     return (

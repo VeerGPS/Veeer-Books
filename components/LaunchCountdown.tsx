@@ -11,7 +11,9 @@ function parts(ms: number) {
 }
 
 /** Live countdown for a launch price. Refreshes the page when the offer ends so the regular price shows. */
-export default function LaunchCountdown({ endsAt, regular, compact = false }: { endsAt: string; regular?: { price: number; foreign?: ForeignOverride }; compact?: boolean }) {
+export default function LaunchCountdown({ endsAt, regular, compact = false, label }: { endsAt: string; regular?: { price: number; foreign?: ForeignOverride }; compact?: boolean; label?: string }) {
+  const isLaunch = !label || label === "Launch price";
+  const name = isLaunch ? "🚀 Launch price" : `🔥 ${label}`;
   const router = useRouter();
   const end = new Date(endsAt).getTime();
   const [now, setNow] = useState<number | null>(null);
@@ -30,17 +32,17 @@ export default function LaunchCountdown({ endsAt, regular, compact = false }: { 
     }
   }, [now, left, router]);
 
-  if (left <= 0) return compact ? null : <div className="launch-box launch-ended">The launch offer has ended.</div>;
+  if (left <= 0) return compact ? null : <div className="launch-box launch-ended">{isLaunch ? "The launch offer has ended." : "This offer has ended."}</div>;
   // Render the same markup on the server and first client paint, then start ticking.
   const p = now === null ? { d: parts(left).d, h: -1, m: -1, s: -1 } : parts(left);
   const pad = (n: number) => (n < 0 ? "--" : String(n).padStart(2, "0"));
 
   if (compact) {
-    return <span className="launch-chip" suppressHydrationWarning>🚀 Launch price · {p.d > 0 ? `${p.d}d ` : ""}{pad(p.h)}:{pad(p.m)}:{pad(p.s)} left</span>;
+    return <span className="launch-chip" suppressHydrationWarning>{name} · {p.d > 0 ? `${p.d}d ` : ""}{pad(p.h)}:{pad(p.m)}:{pad(p.s)} left</span>;
   }
   return (
     <div className="launch-box" role="timer" aria-live="off">
-      <div className="launch-title">🚀 Launch price ends in</div>
+      <div className="launch-title">{isLaunch ? "🚀 Launch price ends in" : `🔥 ${label} ends in`}</div>
       <div className="launch-clock" suppressHydrationWarning>
         {p.d > 0 ? <span><b>{p.d}</b><i>days</i></span> : null}
         <span><b>{pad(p.h)}</b><i>hrs</i></span>

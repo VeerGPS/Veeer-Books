@@ -10,31 +10,9 @@ import { canOptimize } from "@/lib/image";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { BookPrice, bundleMoney } from "@/components/Price";
 import { useAuth } from "@/contexts/AuthContext";
-import { GIFT_BOOK } from "@/lib/gift";
-import { GIFT_CLAIMED_KEY } from "@/components/GiftSignup";
-
-/** True while the visitor hasn't claimed the free book yet (it's the first offer they should see). */
-function useGiftOpen() {
-  const { purchasedBooks, isReady } = useAuth();
-  const [claimed, setClaimed] = useState(false);
-  useEffect(() => {
-    try { setClaimed(Boolean(localStorage.getItem(GIFT_CLAIMED_KEY))); } catch { /* ignore */ }
-  }, []);
-  return { ready: isReady, open: !claimed && !purchasedBooks.includes(GIFT_BOOK.id) };
-}
-
-function FreeBookBar({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="freebar">
-      <Link href="/free-book" className="freebar-link">
-        <span aria-hidden="true">🎁</span>
-        <span>Get <b>{GIFT_BOOK.title}</b> FREE<span className="freebar-long"> — the complete fantasy book</span></span>
-        <span className="freebar-cta">Claim now →</span>
-      </Link>
-      <button type="button" className="freebar-x" onClick={onDismiss} aria-label="Dismiss banner">✕</button>
-    </div>
-  );
-}
+import { isGiftClaimed } from "@/components/GiftSignup";
+import { useDeals } from "@/contexts/DealsContext";
+import type { GiftBookInfo } from "@/lib/deals-shared";
 
 type BookItem = {
   id: number;
@@ -59,6 +37,62 @@ type BundleOffer = {
   books: BookItem[];
 };
 
+/** True while the visitor hasn't claimed the free book yet (it's the first offer they should see). */
+function useGiftOpen() {
+  const { purchasedBooks, isReady } = useAuth();
+  const gift = useDeals().gift;
+  const [claimed, setClaimed] = useState(false);
+  useEffect(() => { setClaimed(isGiftClaimed(gift?.id)); }, [gift?.id]);
+  return { ready: isReady, gift, open: Boolean(gift) && !claimed && !purchasedBooks.includes(gift!.id) };
+}
+
+function Bar({ href, children, cta, onDismiss }: { href: string; children: React.ReactNode; cta: string; onDismiss: () => void }) {
+  const external = /^https?:/i.test(href);
+  const inner = (
+    <>
+      {children}
+      {cta ? <span className="freebar-cta">{cta}</span> : null}
+    </>
+  );
+  return (
+    <div className="freebar">
+      {external ? <a href={href} className="freebar-link" target="_blank" rel="noopener noreferrer">{inner}</a> : <Link href={href} className="freebar-link">{inner}</Link>}
+      <button type="button" className="freebar-x" onClick={onDismiss} aria-label="Dismiss banner">✕</button>
+    </div>
+  );
+}
+
+function FreeBookBar({ gift, onDismiss }: { gift: GiftBookInfo; onDismiss: () => void }) {
+  return (
+    <Bar href="/free-book" cta="Claim now →" onDismiss={onDismiss}>
+      <span aria-hidden="true">🎁</span>
+      <span>Get <b>{gift.title}</b> FREE<span className="freebar-long"> — the complete book</span></span>
+    </Bar>
+  );
+}
+
+function SaleBar({ label, percent, endsAt, onDismiss }: { label: string; percent: number; endsAt?: string; onDismiss: () => void }) {
+  const [left, setLeft] = useState("");
+  useEffect(() => {
+    if (!endsAt) return;
+    const tick = () => {
+      const ms = +new Date(endsAt) - Date.now();
+      if (ms <= 0) return setLeft("");
+      const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+      setLeft(d > 0 ? `${d}d ${h}h left` : `${h}h ${m}m left`);
+    };
+    tick();
+    const t = window.setInterval(tick, 30000);
+    return () => window.clearInterval(t);
+  }, [endsAt]);
+  return (
+    <Bar href="/#collection" cta="Shop the sale →" onDismiss={onDismiss}>
+      <span aria-hidden="true">🔥</span>
+      <span><b>{label}</b>: {percent}% off<span className="freebar-long"> books</span>{left ? <span className="freebar-long"> · {left}</span> : null}</span>
+    </Bar>
+  );
+}
+
 export default function BundleHeaderBanner() {
   const router = useRouter();
   const { addMultiple } = useCart();
@@ -68,6 +102,10 @@ export default function BundleHeaderBanner() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const gift = useGiftOpen();
+  const deals = useDeals();
+  const bundlePopupAllowed = deals.popups.bundle;
+  const allowRef = useRef(bundlePopupAllowed);
+  allowRef.current = bundlePopupAllowed;
   const giftOpenRef = useRef(gift.open);
   giftOpenRef.current = gift.open;
 
@@ -82,7 +120,7 @@ export default function BundleHeaderBanner() {
 
           // Auto-open modal popup once per session — never over checkout, readers or dashboards.
           // New visitors see the free-book offer first; the bundle popup is for returning readers.
-          if (giftOpenRef.current) return;
+          if (giftOpenRef.current || !allowRef.current) return;
           const quiet = ["/cart", "/reader", "/author", "/admin", "/gift", "/free-book", "/refer"];
           if (quiet.some((p) => window.location.pathname.startsWith(p))) return;
           try {
@@ -124,22 +162,22 @@ export default function BundleHeaderBanner() {
     };
   }, [isPopupOpen, handleCloseModal]);
 
-  if (isDismissed || !gift.ready) return null;
-  if (gift.open) return <FreeBookBar onDismiss={() => setIsDismissed(true)} />;
-  if (!activeBundle) return null;
+  if (isDismissed || deals.bar.mode === "off") return null;
+  if (!activeBundle && deals.bar.mode !== "custom" && !deals.sale.active && !(gift.open && gift.gift)) return null;
 
-  const m = bundleMoney(cur, activeBundle as any);
+  const m = activeBundle ? bundleMoney(cur, activeBundle as any) : { price: 0, original: 0, savings: 0, pct: 0 };
   const savingsINR = m.savings;
   const discountPct = m.pct;
 
   const handleClaim = () => {
+    if (!activeBundle) return;
     addMultiple(activeBundle.bookIds);
     handleCloseModal();
     router.push("/cart");
   };
 
   const modalElement =
-    mounted && isPopupOpen ? (
+    mounted && isPopupOpen && activeBundle ? (
       <div
         className="bundle-modal-backdrop"
         onClick={handleCloseModal}
@@ -490,6 +528,19 @@ export default function BundleHeaderBanner() {
       </div>
     ) : null;
 
+  const portal = mounted && modalElement ? createPortal(modalElement, document.body) : null;
+  const dismiss = () => setIsDismissed(true);
+  if (deals.bar.mode === "custom" && deals.bar.text) {
+    return (
+      <>{portal}<Bar href={deals.bar.link || "/"} cta={deals.bar.button ? `${deals.bar.button} →` : ""} onDismiss={dismiss}>
+        <span>{deals.bar.text}</span>
+      </Bar></>
+    );
+  }
+  if (!gift.ready) return <>{portal}</>;
+  if (gift.open && gift.gift) return <>{portal}<FreeBookBar gift={gift.gift} onDismiss={dismiss} /></>;
+  if (deals.sale.active) return <>{portal}<SaleBar label={deals.sale.label} percent={deals.sale.percent} endsAt={deals.sale.endsAt} onDismiss={dismiss} /></>;
+  if (!activeBundle) return <>{portal}</>;
   return (
     <>
       {/* ─── Top Header Announcement Bar ─── */}

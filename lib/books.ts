@@ -1,4 +1,6 @@
 import { connectDB } from "@/lib/mongoose";
+import { getDeals, DEALS_CACHE_TAG } from "@/lib/deals";
+import { saleActiveFor, type SaleDeal } from "@/lib/deals-shared";
 import { BookModel } from "@/models";
 import { readFile } from "fs/promises";
 import path from "path";
@@ -44,6 +46,8 @@ export type Book = {
   htmlContent?: string;
   /** ISO date while a launch price is running (price is then the launch price). */
   launchEndsAt?: string;
+  /** Name of the running offer ("Launch price", "Festive Sale"…), when there is one. */
+  offerLabel?: string;
   /** Regular price to return to after the launch offer. */
   regularPrice?: number;
   /** Optional admin-set prices for US / UK visitors. */
@@ -339,9 +343,23 @@ export function activeLaunch(d: { launchPrice?: number; launchEndsAt?: Date | st
   return { price: lp, endsAt: ends.toISOString() };
 }
 
-function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
+/**
+ * The offer price a book is selling at right now: its own launch price, or the
+ * store-wide sale from /admin/deals — whichever is lower.
+ */
+export function activeOffer(d: { id?: number; launchPrice?: number; launchEndsAt?: Date | string | null }, regular: number, sale?: SaleDeal) {
+  const launch = activeLaunch(d, regular);
+  let best = launch ? { ...launch, label: "Launch price" } : null;
+  if (sale && regular > 0 && saleActiveFor(sale, d.id)) {
+    const price = Math.max(1, Math.round(regular * (1 - sale.percent / 100)));
+    if (price < regular && (!best || price < best.price)) best = { price, endsAt: new Date(sale.endsAt!).toISOString(), label: sale.label };
+  }
+  return best;
+}
+
+function toBook(d: BookDoc, local: Book | undefined, slugHint?: string, sale?: SaleDeal): Book {
   const regular = resolveBookPrice(d);
-  const launch = activeLaunch(d, regular || local?.price || 0);
+  const launch = activeOffer({ ...d, id: d.id || local?.id }, regular || local?.price || 0, sale);
   const priceVal = launch ? launch.price : regular;
   const actualPriceVal = launch
     ? Math.max(Number(d.actualPrice) || 0, regular)
@@ -379,7 +397,8 @@ function toBook(d: BookDoc, local: Book | undefined, slugHint?: string): Book {
     publisherType: d.publisherType || "in_house",
     highlights: d.highlights && d.highlights.length > 0 ? d.highlights : local?.highlights,
     launchEndsAt: launch?.endsAt,
-    regularPrice: launch ? regular : undefined,
+    offerLabel: launch?.label,
+    regularPrice: launch ? regular || local?.price : undefined,
     ...(Number(d.priceUSD) > 0 || Number(d.priceGBP) > 0
       ? { foreign: { USD: Number(d.priceUSD) || undefined, GBP: Number(d.priceGBP) || undefined } }
       : {}),
@@ -396,14 +415,15 @@ const LIST_PROJECTION = { htmlContent: 0, __v: 0 } as const;
 const loadAllBooks = unstable_cache(
   async (): Promise<Book[]> => {
     await connectDB();
+    const { sale } = await getDeals();
     const docs = await BookModel.find({ isActive: true }, LIST_PROJECTION).sort({ id: 1 }).lean();
     if (docs && docs.length > 0) {
-      return docs.map((d) => toBook(d as BookDoc, getBookById((d as BookDoc).id)));
+      return docs.map((d) => toBook(d as BookDoc, getBookById((d as BookDoc).id), undefined, sale));
     }
     return BOOKS;
   },
-  ["all-books-v3"],
-  { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG] }
+  ["all-books-v4"],
+  { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG, DEALS_CACHE_TAG] }
 );
 
 /** All active books for listings (cached; no HTML body). Falls back to the built-in catalogue, uncached, if the DB is down. */
@@ -425,14 +445,15 @@ const loadBookBySlug = unstable_cache(
       withHtml ? { __v: 0 } : LIST_PROJECTION
     ).lean();
     if (doc) {
-      const book = toBook(doc as BookDoc, localBook, slug);
+      const { sale } = await getDeals();
+      const book = toBook(doc as BookDoc, localBook, slug, sale);
       if (withHtml) book.htmlContent = await resolveHtmlContent((doc as BookDoc).htmlContent || localBook?.htmlContent);
       return book;
     }
     return localBook ?? null;
   },
-  ["book-by-slug-v3"],
-  { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG] }
+  ["book-by-slug-v4"],
+  { revalidate: BOOKS_REVALIDATE, tags: [BOOKS_CACHE_TAG, DEALS_CACHE_TAG] }
 );
 
 /**
@@ -454,14 +475,14 @@ export const getBookBySlugFromDB = cache(
 /** Small, client-safe shape for listings sent to the browser. */
 export type BookSummary = Pick<
   Book,
-  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader" | "launchEndsAt" | "regularPrice" | "foreign"
+  "id" | "slug" | "title" | "author" | "price" | "actualPrice" | "color" | "genre" | "pages" | "cover" | "reader" | "launchEndsAt" | "regularPrice" | "foreign" | "offerLabel"
 >;
 
 export function toSummary(b: Book): BookSummary {
   return {
     id: b.id, slug: b.slug, title: b.title, author: b.author, price: b.price, actualPrice: b.actualPrice,
     color: b.color, genre: b.genre, pages: b.pages, cover: b.cover, reader: b.reader,
-    ...(b.launchEndsAt ? { launchEndsAt: b.launchEndsAt, regularPrice: b.regularPrice } : {}),
+    ...(b.launchEndsAt ? { launchEndsAt: b.launchEndsAt, regularPrice: b.regularPrice, offerLabel: b.offerLabel } : {}),
     ...(b.foreign ? { foreign: b.foreign } : {}),
   };
 }
