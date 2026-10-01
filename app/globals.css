@@ -1450,3 +1450,32 @@ h1, h2, h3 { overflow-wrap: break-word; }
   .btn-sm { padding-left: 0.7rem; padding-right: 0.7rem; }
 }
 @media (max-width: 768px) { .meta-pill { white-space: nowrap; flex-shrink: 0; } }
+
+/* ─── Free-book top bar & book-page strip ─────────────────────────────── */
+.freebar { position: relative; z-index: 90; display: flex; align-items: center; background: linear-gradient(90deg, #1c1917, #2a2119 50%, #1c1917); border-bottom: 1px solid #c5a059; box-shadow: 0 2px 10px rgba(0,0,0,.25); font-family: var(--sans); }
+.freebar-link { flex: 1; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .45rem .6rem; padding: .55rem 2.5rem .55rem 1rem; color: #fdfbf7; text-decoration: none; font-size: .9rem; text-align: center; line-height: 1.35; }
+.freebar-link b { color: #fde68a; }
+.freebar-cta { background: #c5a059; color: #1c1917; font-weight: 800; font-size: .78rem; padding: .25rem .7rem; border-radius: 999px; white-space: nowrap; }
+.freebar-link:hover .freebar-cta { background: #d4af37; }
+.freebar-x { position: absolute; right: .4rem; top: 50%; transform: translateY(-50%); background: none; border: 0; color: #a8a29e; font-size: 1.1rem; cursor: pointer; padding: .3rem .5rem; }
+@media (max-width: 640px) { .freebar-long { display: none; } .freebar-link { font-size: .86rem; } }
+
+.freestrip { display: flex; align-items: center; gap: .85rem; margin-top: 1.25rem; padding: .8rem 1rem; border: 1.5px dashed #c5a059; border-radius: 12px; background: #fffbeb; color: #1c1917; text-decoration: none; transition: background .15s ease; }
+.freestrip:hover { background: #fef3c7; }
+.freestrip img { border-radius: 4px; box-shadow: 0 3px 8px rgba(0,0,0,.18); flex-shrink: 0; object-fit: cover; }
+.freestrip-text { display: grid; gap: .15rem; min-width: 0; flex: 1; font-size: .88rem; color: #57534e; line-height: 1.35; }
+.freestrip-text b { color: #1c1917; font-size: .95rem; }
+.freestrip-cta { font-weight: 800; color: #92400e; white-space: nowrap; font-size: .88rem; }
+@media (max-width: 420px) { .freestrip { flex-wrap: wrap; } .freestrip-cta { width: 100%; text-align: right; } }
+
+/* Free-book form on The Shattered Sky's own product page */
+.gift-product { border: 2px solid #c5a059; border-radius: 14px; background: linear-gradient(180deg, #fffbeb, #fff); padding: 1.1rem 1.15rem 1rem; box-shadow: 0 8px 22px rgba(197,160,89,.18); }
+.gift-product-label { font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #92400e; }
+.gift-product-price { display: flex; align-items: baseline; gap: .6rem; margin: .15rem 0 .35rem; }
+.gift-product-price b { font-family: var(--serif); font-size: 2.4rem; color: #15803d; line-height: 1.1; }
+.gift-product-price s { color: #94a3b8; font-size: 1.2rem; }
+.gift-product p { color: #57534e; font-size: .95rem; margin: 0 0 .75rem; line-height: 1.45; }
+.gift-product .gift-form { display: grid; gap: .55rem; }
+.gift-product .gift-btn { width: 100%; font-size: 1.05rem; }
+.gift-product .gift-fine { margin: .2rem 0 0; }
+.gift-product.gift-done { text-align: center; }

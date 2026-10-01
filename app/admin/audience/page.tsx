@@ -16,7 +16,7 @@ type Data = {
 
 const inr = (n: number) => "₹" + (Number(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const date = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
-const SOURCE_LABEL: Record<string, string> = { popup: "Pop-up", footer: "Footer", home: "Home page", landing: "Free-book page", blog: "Blog", site: "Website", test: "Test" };
+const SOURCE_LABEL: Record<string, string> = { popup: "Pop-up", footer: "Footer", home: "Home page", landing: "Free-book page", product: "Shattered Sky page", blog: "Blog", site: "Website", test: "Test" };
 
 function toCsv(rows: (string | number)[][]) {
   return rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");

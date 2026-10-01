@@ -1,3 +1,6 @@
+import FreeBookStrip from "@/components/FreeBookStrip";
+import GiftBookOffer from "@/components/GiftBookOffer";
+import { GIFT_BOOK } from "@/lib/gift";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -212,6 +215,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
               </p>
             ) : null}
 
+            {book.slug === GIFT_BOOK.slug ? (
+              <GiftBookOffer>
+                <>
             {/* Price Callout */}
             <div style={{ margin: "1.25rem 0 1.5rem" }}>
               <div style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
@@ -223,7 +229,25 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {/* Action Buttons: Buy Now, Add to Cart, Read Free Preview */}
             <ProductActions bookId={book.id} slug={book.slug} />
+                </>
+              </GiftBookOffer>
+            ) : (
+              <>
+            {/* Price Callout */}
+            <div style={{ margin: "1.25rem 0 1.5rem" }}>
+              <div style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                {book.launchEndsAt ? "Launch price" : "Digital Price"}
+              </div>
+              <ProductPrice book={{ price: book.price, actualPrice: book.actualPrice, regularPrice: book.regularPrice, foreign: book.foreign }} />
+              {book.launchEndsAt ? <LaunchCountdown endsAt={book.launchEndsAt} regular={book.regularPrice ? { price: book.regularPrice, foreign: book.foreign } : undefined} /> : null}
+            </div>
+
+            {/* Action Buttons: Buy Now, Add to Cart, Read Free Preview */}
+            <ProductActions bookId={book.id} slug={book.slug} />
+              </>
+            )}
             <ShareBar url={pageUrl} title={book.title} />
+            {book.slug !== GIFT_BOOK.slug ? <FreeBookStrip currentSlug={book.slug} /> : null}
           </article>
         </section>
 

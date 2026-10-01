@@ -52,10 +52,8 @@ export default async function HomePage() {
               reader built for phone, tablet and desktop.
             </p>
             <div className="hero-cta">
-              <Link href="#collection" className="btn btn-primary">Browse the books</Link>
-              {featured ? (
-                <Link href={`/reader/${featured.slug}?preview=1`} className="btn btn-outline">Read a free preview</Link>
-              ) : null}
+              <Link href="/free-book" className="btn btn-primary">🎁 Get a free book</Link>
+              <Link href="#collection" className="btn btn-outline">Browse the books</Link>
             </div>
             <ul className="hero-points">
               <li>Instant access</li>

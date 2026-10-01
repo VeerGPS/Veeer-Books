@@ -10,7 +10,7 @@ const SEEN_KEY = "vsb_gift_popup_seen";
 const QUIET_DAYS = 14;
 const HIDE_ON = ["/reader", "/cart", "/admin", "/author", "/free-book", "/gift", "/library"];
 
-/** Friendly free-book offer: after ~30 s of browsing or when the mouse leaves the page. Shown at most every 14 days. */
+/** Friendly free-book offer: after ~12 s of browsing or when the mouse leaves the page. Shown at most every 14 days. */
 export default function GiftPopup() {
   const pathname = usePathname() || "/";
   const { purchasedBooks, isReady } = useAuth();
@@ -38,8 +38,10 @@ export default function GiftPopup() {
       try { localStorage.setItem(SEEN_KEY, String(Date.now())); } catch { /* ignore */ }
       cleanup();
     };
-    const timer = window.setTimeout(show, 30_000);
-    const onLeave = (e: MouseEvent) => { if (e.clientY <= 0) show(); };
+    const timer = window.setTimeout(show, 12_000);
+    // Exit-intent only on real mouse devices — touch screens fire fake mouse events.
+    const hasMouse = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+    const onLeave = (e: MouseEvent) => { if (hasMouse && !e.relatedTarget && e.clientY <= 0) show(); };
     document.addEventListener("mouseout", onLeave);
     function cleanup() { window.clearTimeout(timer); window.clearTimeout(retry); document.removeEventListener("mouseout", onLeave); }
     return cleanup;

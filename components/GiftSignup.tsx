@@ -19,11 +19,10 @@ export function markGiftClaimed() {
  * Email sign-up that unlocks The Shattered Sky instantly.
  * variant "card" = big panel with cover, "inline" = compact footer form.
  */
-export default function GiftSignup({ variant = "card", source = "site", onDone }: { variant?: "card" | "inline" | "modal"; source?: string; onDone?: () => void }) {
+export default function GiftSignup({ variant = "card", source = "site", onDone }: { variant?: "card" | "inline" | "modal" | "product"; source?: string; onDone?: () => void }) {
   const { token, addPurchasedBooks } = useAuth();
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [trap, setTrap] = useState("");
+    const [trap, setTrap] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
@@ -37,7 +36,7 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
       const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ email: email.trim(), name: name.trim(), source, website: trap, refCode: getRefCode() }),
+        body: JSON.stringify({ email: email.trim(), source, website: trap, refCode: getRefCode() }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || "Something went wrong. Please try again.");
@@ -68,9 +67,6 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
 
   const form = (
     <form onSubmit={submit} className="gift-form" noValidate>
-      {variant !== "inline" ? (
-        <input className="gift-input" type="text" placeholder="First name (optional)" value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" aria-label="First name" />
-      ) : null}
       <input className="gift-input" type="email" placeholder="Your email address" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" aria-label="Email address" required />
       <input type="text" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} className="gift-trap" aria-hidden="true" />
       <button className="btn btn-primary gift-btn" disabled={busy}>{busy ? "Sending…" : "Get the free book"}</button>
@@ -78,6 +74,17 @@ export default function GiftSignup({ variant = "card", source = "site", onDone }
       <p className="gift-fine">No spam. Just new books, launch offers and the odd reading tip. Unsubscribe any time.</p>
     </form>
   );
+
+  if (variant === "product") {
+    return (
+      <div className="gift gift-product">
+        <div className="gift-product-label">Free for you today</div>
+        <div className="gift-product-price"><b>FREE</b> <s><Money inr={GIFT_BOOK.price} /></s></div>
+        <p>Enter your email and the complete book is yours instantly — no payment, no card.</p>
+        {form}
+      </div>
+    );
+  }
 
   if (variant === "inline") {
     return (

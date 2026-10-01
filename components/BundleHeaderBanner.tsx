@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,6 +9,32 @@ import { useCart } from "@/contexts/CartContext";
 import { canOptimize } from "@/lib/image";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { BookPrice, bundleMoney } from "@/components/Price";
+import { useAuth } from "@/contexts/AuthContext";
+import { GIFT_BOOK } from "@/lib/gift";
+import { GIFT_CLAIMED_KEY } from "@/components/GiftSignup";
+
+/** True while the visitor hasn't claimed the free book yet (it's the first offer they should see). */
+function useGiftOpen() {
+  const { purchasedBooks, isReady } = useAuth();
+  const [claimed, setClaimed] = useState(false);
+  useEffect(() => {
+    try { setClaimed(Boolean(localStorage.getItem(GIFT_CLAIMED_KEY))); } catch { /* ignore */ }
+  }, []);
+  return { ready: isReady, open: !claimed && !purchasedBooks.includes(GIFT_BOOK.id) };
+}
+
+function FreeBookBar({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="freebar">
+      <Link href="/free-book" className="freebar-link">
+        <span aria-hidden="true">🎁</span>
+        <span>Get <b>{GIFT_BOOK.title}</b> FREE<span className="freebar-long"> — the complete fantasy book</span></span>
+        <span className="freebar-cta">Claim now →</span>
+      </Link>
+      <button type="button" className="freebar-x" onClick={onDismiss} aria-label="Dismiss banner">✕</button>
+    </div>
+  );
+}
 
 type BookItem = {
   id: number;
@@ -41,6 +67,9 @@ export default function BundleHeaderBanner() {
   const [isDismissed, setIsDismissed] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const gift = useGiftOpen();
+  const giftOpenRef = useRef(gift.open);
+  giftOpenRef.current = gift.open;
 
   useEffect(() => {
     setMounted(true);
@@ -52,6 +81,8 @@ export default function BundleHeaderBanner() {
           setActiveBundle(bundle);
 
           // Auto-open modal popup once per session — never over checkout, readers or dashboards.
+          // New visitors see the free-book offer first; the bundle popup is for returning readers.
+          if (giftOpenRef.current) return;
           const quiet = ["/cart", "/reader", "/author", "/admin", "/gift", "/free-book", "/refer"];
           if (quiet.some((p) => window.location.pathname.startsWith(p))) return;
           try {
@@ -93,7 +124,9 @@ export default function BundleHeaderBanner() {
     };
   }, [isPopupOpen, handleCloseModal]);
 
-  if (!activeBundle || isDismissed) return null;
+  if (isDismissed || !gift.ready) return null;
+  if (gift.open) return <FreeBookBar onDismiss={() => setIsDismissed(true)} />;
+  if (!activeBundle) return null;
 
   const m = bundleMoney(cur, activeBundle as any);
   const savingsINR = m.savings;
